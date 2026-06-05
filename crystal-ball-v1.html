@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>v1 · 乌云平台</title>
+<style>*{margin:0;padding:0}body{background:#000;overflow:hidden}canvas{display:block}#hint{position:absolute;bottom:20px;left:0;width:100%;text-align:center;pointer-events:none;z-index:2;color:rgba(255,255,255,.2);font-size:11px;letter-spacing:1px;font-family:'PingFang SC','Microsoft YaHei',sans-serif}</style></head>
+<body><div id="hint">v1 · 乌云平台 · ← → 控球</div>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const r=new THREE.WebGLRenderer({antialias:true});r.setPixelRatio(Math.min(devicePixelRatio,2));r.toneMapping=THREE.ACESFilmicToneMapping;r.toneMappingExposure=.9;r.outputColorSpace=THREE.SRGBColorSpace;r.shadowMap.enabled=true;r.shadowMap.type=THREE.PCFSoftShadowMap;document.body.appendChild(r.domElement);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x00b84c);
+const cam=new THREE.PerspectiveCamera(38,1,.1,25);cam.position.set(0,1.5,10);cam.lookAt(0,.1,-1);
+const ctrl=new OrbitControls(cam,r.domElement);ctrl.target.set(0,.1,-1);ctrl.enableDamping=true;ctrl.dampingFactor=.08;ctrl.minDistance=4;ctrl.maxDistance=18;ctrl.maxPolarAngle=Math.PI*.45;ctrl.update();
+// 灯光
+const amb=new THREE.AmbientLight(0x445555,.5);scene.add(amb);
+const key=new THREE.DirectionalLight(0xffeedd,2);key.position.set(5,4,3);scene.add(key);
+const fl=new THREE.PointLight(0xccccff,0,6);fl.position.set(0,.2,-1.8);scene.add(fl);
+// 平台参数
+const BR=.16,PW=.25,PD=1.25,EX=PD-BR-.03,EZ=PW-BR-.03;
+const pg=new THREE.Group();pg.position.set(0,.05,-1.8);scene.add(pg);
+// 云Shader(FBM+软边+闪电)
+const cV=`varying vec3 wP,wN,lP;void main(){vec4 wp=modelMatrix*vec4(position,1.);wP=wp.xyz;lP=position;wN=normalize(mat3(modelMatrix)*normal);gl_Position=projectionMatrix*viewMatrix*wp;}`;
+const cF=`varying vec3 wP,wN,lP;uniform float uT,uL;
+float h(float n){return fract(sin(n)*43758.5);}
+float n(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.-2.*f);return mix(mix(mix(h(i.x+i.y*131.+i.z*271.),h(i.x+1.+i.y*131.+i.z*271.),f.x),mix(h(i.x+(i.y+1.)*131.+i.z*271.),h(i.x+1.+(i.y+1.)*131.+i.z*271.),f.x),f.y),mix(mix(h(i.x+i.y*131.+(i.z+1.)*271.),h(i.x+1.+i.y*131.+(i.z+1.)*271.),f.x),mix(h(i.x+(i.y+1.)*131.+(i.z+1.)*271.),h(i.x+1.+(i.y+1.)*131.+(i.z+1.)*271.),f.x),f.y),f.z);}
+float fbm(vec3 p){float v=0.,a=.5;vec3 s=vec3(100.);for(int i=0;i<5;i++){v+=a*n(p);p=p*2.2+s;a*=.5;}return v;}
+void main(){vec3 p=wP*3.;float n1=fbm(p+uT*.3),n2=fbm(p*2.5+uT*.5+5.);float br=.15+n1*.4+n2*.15+uL*.35+pow(max(.01,wN.y),2.5)*.2;
+vec3 dg=vec3(.08,.09,.12),mg=vec3(.28,.3,.35),lg=vec3(.5,.55,.6),wh=vec3(.7,.73,.76);
+vec3 col=mix(dg,mg,smoothstep(.15,.4,br));col=mix(col,lg,smoothstep(.4,.65,br));col=mix(col,wh,smoothstep(.65,.85,br));col+=vec3(.1,.15,.28)*uL;
+float eX=abs(lP.x)/${PD.toFixed(2)},eZ=abs(lP.z)/${PW.toFixed(2)};
+float ef=1.-smoothstep(.72,.95,max(eX,eZ+n(wP*.8+uT*.2)*.15));
+gl_FragColor=vec4(col,ef);}`;
+const cs=new THREE.ShaderMaterial({vertexShader:cV,fragmentShader:cF,uniforms:{uT:{value:0},uL:{value:0}},transparent:true,depthWrite:false,side:THREE.DoubleSide});
+// 主体
+const mainCloud=new THREE.Mesh(new THREE.BoxGeometry(PD*2,.28,PW*2,3,3,3),cs);pg.add(mainCloud);
+// 边框
+['front','back','left','right'].forEach(p=>{const w=p==='front'||p==='back'?PD*2+.04:PW*2+.04;const g=new THREE.BoxGeometry(w,.02,.02);const e=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0x333333,transparent:true,opacity:.4,depthTest:true,depthWrite:true}));e.renderOrder=2;if(p==='front')e.position.set(0,0,PW);if(p==='back')e.position.set(0,0,-PW);if(p==='left'){e.rotation.y=Math.PI/2;e.position.set(-PD,0,0)}if(p==='right'){e.rotation.y=Math.PI/2;e.position.set(PD,0,0)}pg.add(e)});
+// 球
+const ball=new THREE.Mesh(new THREE.SphereGeometry(BR,200,200),new THREE.MeshPhysicalMaterial({color:0xf8fcff,metalness:0,roughness:.08,ior:1.45,transmission:.88,thickness:1.2,specularIntensity:.9,specularColor:new THREE.Color(0xffffff),attenuationColor:new THREE.Color(0xccddff),attenuationDistance:1.5,clearcoat:.03,clearcoatRoughness:.05,envMapIntensity:.55}));ball.position.y=.27;ball.castShadow=true;ball.receiveShadow=true;pg.add(ball);
+// 物理
+let bvx=0,bvz=0;const F=.94,FC=3;
+const keys={};addEventListener('keydown',e=>{keys[e.key]=true;e.preventDefault()});addEventListener('keyup',e=>{keys[e.key]=false});
+function ph(dt){if(keys['ArrowLeft'])bvx-=FC*dt;if(keys['ArrowRight'])bvx+=FC*dt;if(keys['r']||keys['R']){ball.position.set(0,.27,0);bvx=0;bvz=0}bvx*=Math.pow(F,dt*60);bvz*=Math.pow(F,dt*60);ball.position.x+=bvx*dt;ball.position.z+=bvz*dt;if(Math.abs(ball.position.x)>EX){ball.position.x=Math.sign(ball.position.x)*EX;bvx*=-.3}if(Math.abs(ball.position.z)>EZ){ball.position.z=Math.sign(ball.position.z)*EZ;bvz*=-.3}ball.position.y=.27;ball.rotation.x+=bvz*dt*1.5;ball.rotation.z-=bvx*dt*1.5}
+function rs(){const w=innerWidth,h=innerHeight;r.setSize(w,h);cam.aspect=w/h;cam.updateProjectionMatrix()}addEventListener('resize',rs);rs();
+const cl=new THREE.Clock();let t=0,lti=2,le=0;
+function an(){requestAnimationFrame(an);const dt=Math.min(cl.getDelta(),.05);t+=dt;ph(dt);lti-=dt;if(lti<=0){le=Math.random()>.6?1:0;if(le>0){lti=.06+Math.random()*.04;fl.intensity=6+Math.random()*12}else{lti=2+Math.random()*8;fl.intensity=0}}le*=Math.pow(.02,dt);fl.intensity*=.85;amb.intensity=.5+le*.55;cs.uniforms.uT.value=t;cs.uniforms.uL.value=le;ctrl.update();r.render(scene,cam)}an();
+</script></body></html>

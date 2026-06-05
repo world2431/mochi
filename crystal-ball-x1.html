@@ -1,0 +1,228 @@
+v32
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>玻璃球 · 倾斜平台</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;font-family:'PingFang SC','Microsoft YaHei',sans-serif}
+canvas{display:block}
+#hint{position:absolute;bottom:20px;left:0;width:100%;text-align:center;pointer-events:none;z-index:2;color:rgba(255,255,255,.22);font-size:11px;letter-spacing:1px}
+#controls{position:absolute;top:16px;left:16px;z-index:3;pointer-events:none;color:rgba(255,255,255,.18);font-size:10px;line-height:1.8;letter-spacing:1px}
+#controls kbd{display:inline-block;padding:2px 6px;border:1px solid rgba(255,255,255,.12);border-radius:4px;margin:0 2px;color:rgba(255,255,255,.35)}
+</style>
+</head>
+<body>
+<div id="controls">
+  <kbd>↑</kbd><kbd>↓</kbd> 前后倾斜<br>
+  <kbd>←</kbd><kbd>→</kbd> 左右倾斜<br>
+  <kbd>R</kbd> 复位
+</div>
+<div id="hint">键盘方向键倾斜平台 → 玻璃球随重力滚动 → 边缘停下</div>
+
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+
+// ===== 渲染器 =====
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.88;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42,1,0.1,25);
+camera.position.set(2.2,3.6,6.5);
+camera.lookAt(0,0.3,0);
+
+const controls = new OrbitControls(camera,renderer.domElement);
+controls.target.set(0,0.2,0);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.minDistance = 3; controls.maxDistance = 12;
+controls.maxPolarAngle = Math.PI*0.5;
+controls.update();
+
+// ===== 光照 =====
+const envCanvas = document.createElement('canvas');
+envCanvas.width = 1024; envCanvas.height = 512;
+const ectx = envCanvas.getContext('2d');
+const sky = ectx.createLinearGradient(0,0,0,340);
+sky.addColorStop(0,'#7eb8da');sky.addColorStop(0.4,'#b8d4ea');sky.addColorStop(0.7,'#dde6ee');sky.addColorStop(0.95,'#eaedee');sky.addColorStop(1,'#e4e4dc');
+ectx.fillStyle = sky; ectx.fillRect(0,0,1024,512);
+const grd = ectx.createLinearGradient(0,370,0,512);
+grd.addColorStop(0,'#e6e6e0');grd.addColorStop(0.4,'#ededeb');grd.addColorStop(1,'#f0f0ee');
+ectx.fillStyle = grd; ectx.fillRect(0,385,1024,127);
+const envTex = new THREE.CanvasTexture(envCanvas);
+envTex.mapping = THREE.EquirectangularReflectionMapping;
+envTex.colorSpace = THREE.SRGBColorSpace;
+scene.environment = envTex;
+scene.environmentIntensity = 0.55;
+
+const sun = new THREE.DirectionalLight(0xfff6ed, 6);
+sun.position.set(4.5,8,2.5);
+sun.castShadow = true;
+sun.shadow.mapSize.width = 2048; sun.shadow.mapSize.height = 2048;
+sun.shadow.camera.near = 0.3; sun.shadow.camera.far = 28;
+sun.shadow.camera.left = -4; sun.shadow.camera.right = 4;
+sun.shadow.camera.top = 4; sun.shadow.camera.bottom = -4;
+sun.shadow.bias = -0.00005; sun.shadow.normalBias = 0.04;
+scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xccddff,0xe0d8cc,0.45));
+
+// ===== 倾斜平台容器 =====
+const PLATFORM_W = 3.2;  // 平台半宽
+const PLATFORM_D = 3.2;  // 平台半深
+const BALL_R = 0.45;     // 球半径
+const EDGE = PLATFORM_W - BALL_R - 0.05; // 球中心的活动边界
+
+const platformGroup = new THREE.Group();
+scene.add(platformGroup);
+
+// 平台面
+const platformGeo = new THREE.BoxGeometry(PLATFORM_W*2,0.12,PLATFORM_D*2);
+const platformCanvas = document.createElement('canvas');
+platformCanvas.width = 256; platformCanvas.height = 256;
+const pctx = platformCanvas.getContext('2d');
+pctx.fillStyle = '#e8e8e3'; pctx.fillRect(0,0,256,256);
+for(let i=0;i<800;i++){const v=225+Math.random()*30;pctx.fillStyle=`rgb(${v},${v},${v})`;pctx.fillRect(Math.random()*256,Math.random()*256,1+Math.random()*2,1+Math.random()*2)}
+const platformTex = new THREE.CanvasTexture(platformCanvas);
+const platformMat = new THREE.MeshStandardMaterial({map:platformTex,color:0xe6e6e0,roughness:0.48,metalness:0.01});
+const platformMesh = new THREE.Mesh(platformGeo,platformMat);
+platformMesh.position.y = -0.06;
+platformMesh.receiveShadow = true;
+platformGroup.add(platformMesh);
+
+// 平台边框（视觉边界）
+const edgeGeo = new THREE.BoxGeometry(PLATFORM_W*2+0.15,0.04,0.08);
+const edgeMat = new THREE.MeshStandardMaterial({color:0x555555,roughness:0.5,metalness:0.4});
+['front','back','left','right'].forEach(pos=>{
+  const edge = new THREE.Mesh(edgeGeo,edgeMat);
+  if(pos==='front'){edge.position.set(0,0,PLATFORM_D);edge.scale.set(1,1,1)}
+  if(pos==='back'){edge.position.set(0,0,-PLATFORM_D);edge.scale.set(1,1,1)}
+  if(pos==='left'){edge.rotation.y=Math.PI/2;edge.position.set(-PLATFORM_W,0,0);edge.scale.set(1,1,1)}
+  if(pos==='right'){edge.rotation.y=Math.PI/2;edge.position.set(PLATFORM_W,0,0);edge.scale.set(1,1,1)}
+  platformGroup.add(edge);
+});
+
+// ===== 玻璃球（在平台容器内，跟随平台倾斜）=====
+const ballGeo = new THREE.SphereGeometry(BALL_R,256,256);
+const ballMat = new THREE.MeshPhysicalMaterial({
+  color:0xf8fcff,metalness:0,roughness:0.08,ior:1.45,
+  transmission:0.88,thickness:1.4,
+  specularIntensity:0.9,specularColor:new THREE.Color(0xffffff),
+  attenuationColor:new THREE.Color(0xccddff),attenuationDistance:1.6,
+  clearcoat:0.03,clearcoatRoughness:0.05,envMapIntensity:0.55
+});
+const ball = new THREE.Mesh(ballGeo,ballMat);
+ball.position.y = 0.5;
+ball.castShadow = true; ball.receiveShadow = true;
+platformGroup.add(ball);
+
+// ===== 地面焦散（跟随球）=====
+const causticCanvas = document.createElement('canvas');
+causticCanvas.width = 256; causticCanvas.height = 256;
+const cctx = causticCanvas.getContext('2d');
+const hues = [0,30,60,120,180,240,300];
+hues.forEach(h=>{
+  const r = 40+Math.random()*60, a = Math.random()*Math.PI*2;
+  const x = 128+Math.cos(a)*r, y = 128+Math.sin(a)*r*0.6;
+  const grad = cctx.createRadialGradient(x,y,0,x,y,30+Math.random()*30);
+  grad.addColorStop(0,`hsla(${h},60%,75%,0.12)`);
+  grad.addColorStop(0.5,`hsla(${h},45%,65%,0.04)`);
+  grad.addColorStop(1,'rgba(0,0,0,0)');
+  cctx.fillStyle = grad; cctx.beginPath(); cctx.arc(x,y,35+Math.random()*25,0,Math.PI*2); cctx.fill();
+});
+const causticTex = new THREE.CanvasTexture(causticCanvas);
+const causticGeo = new THREE.PlaneGeometry(1.4,1.4);
+const causticMat = new THREE.MeshBasicMaterial({map:causticTex,transparent:true,opacity:0.25,depthWrite:false,blending:THREE.AdditiveBlending});
+const causticPlane = new THREE.Mesh(causticGeo,causticMat);
+causticPlane.rotation.x = -Math.PI/2;
+causticPlane.position.y = 0.003;
+causticPlane.renderOrder = 2;
+platformGroup.add(causticPlane);
+
+// ===== 物理状态 =====
+let ballVx = 0, ballVz = 0;
+let tiltX = 0, tiltZ = 0;        // 当前倾斜角度（弧度）
+let targetTiltX = 0, targetTiltZ = 0; // 目标倾斜
+const TILT_SPEED = 0.04;         // 倾斜响应速度
+const MAX_TILT = 0.25;           // 最大倾斜角（约14°）
+const GRAVITY = 12;              // 重力加速度（作用于平台倾斜）
+const FRICTION = 0.95;           // 球滚动摩擦
+const BALL_FORCE = 4;            // 方向键直接驱动力
+const EDGE_BOUNCE = 0.3;
+
+// ===== 输入 =====
+const keys = {};
+window.addEventListener('keydown',e=>{keys[e.key]=true;e.preventDefault()});
+window.addEventListener('keyup',e=>{keys[e.key]=false;e.preventDefault()});
+
+function getInput(dt){
+  // 方向键→直接驱动球
+  if(keys['ArrowUp'])    ballVz -= BALL_FORCE * dt;
+  if(keys['ArrowDown'])  ballVz += BALL_FORCE * dt;
+  if(keys['ArrowLeft'])  ballVx -= BALL_FORCE * dt;
+  if(keys['ArrowRight']) ballVx += BALL_FORCE * dt;
+  if(keys['r']||keys['R']){ball.position.set(0,0.5,0);ballVx=0;ballVz=0}
+}
+
+function updatePhysics(dt){
+  ballVx *= Math.pow(FRICTION, dt*60);
+  ballVz *= Math.pow(FRICTION, dt*60);
+  ball.position.x += ballVx * dt;
+  ball.position.z += ballVz * dt;
+
+  if(Math.abs(ball.position.x) > EDGE){ball.position.x=Math.sign(ball.position.x)*EDGE;ballVx*=-EDGE_BOUNCE}
+  if(Math.abs(ball.position.z) > EDGE){ball.position.z=Math.sign(ball.position.z)*EDGE;ballVz*=-EDGE_BOUNCE}
+
+  // 球高 = 球半径 + 平台上方
+  ball.position.y = 0.5;
+
+  // 焦散跟随
+  causticPlane.position.x = ball.position.x;
+  causticPlane.position.z = ball.position.z;
+
+  // 球的滚动旋转（视觉）
+  ball.rotation.x += ballVz * dt * 1.5;
+  ball.rotation.z -= ballVx * dt * 1.5;
+}
+
+// ===== 后期 =====
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene,camera));
+
+// ===== 响应式 =====
+function resize(){
+  const w=window.innerWidth,h=window.innerHeight;
+  renderer.setSize(w,h);composer.setSize(w,h);
+  camera.aspect=w/h;camera.updateProjectionMatrix();
+}
+window.addEventListener('resize',resize);resize();
+
+// ===== 渲染循环 =====
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(),0.05);
+  getInput(dt);
+  updatePhysics(dt);
+  controls.target.copy(ball.position);
+  controls.update();
+  composer.render();
+}
+animate();
+</script>
+</body>
+</html>

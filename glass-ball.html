@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>玻璃球 · 逐级而下</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a1628;overflow:hidden;height:100vh;font-family:'PingFang SC','Microsoft YaHei',sans-serif}
+
+/* 场景 */
+.scene{width:100%;height:100vh;position:relative;overflow:hidden;
+  background:linear-gradient(180deg,
+    #162d48 0%,#12253e 18%,#0e1e34 35%,
+    #0b182a 55%,#091422 72%,#07101e 100%)}
+
+/* 天空光晕 */
+@property --gx{syntax:'<percentage>';initial-value:55%;inherits:false}
+@property --gy{syntax:'<percentage>';initial-value:30%;inherits:false}
+.sky-glow{position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 55% 35% at var(--gx) var(--gy),rgba(255,175,130,.08) 0%,rgba(255,140,95,.03) 35%,transparent 70%);
+  animation:drift 24s ease-in-out infinite}
+@keyframes drift{0%,100%{--gx:55%;--gy:28%}25%{--gx:48%;--gy:33%}50%{--gx:53%;--gy:25%}75%{--gx:46%;--gy:31%}}
+
+/* 月亮 */
+.moon{position:absolute;top:14%;right:15%;z-index:1;pointer-events:none;
+  width:52px;height:52px;border-radius:50%;
+  background:radial-gradient(circle at 38% 38%,rgba(255,245,230,.95) 0%,rgba(255,220,190,.6) 30%,rgba(200,180,160,.15) 70%,transparent 100%);
+  box-shadow:0 0 40px rgba(255,220,180,.15),0 0 80px rgba(255,200,150,.06)}
+
+/* 星星 */
+.stars{position:absolute;inset:0;pointer-events:none}
+.stars::before{content:'';position:absolute;top:0;left:0;right:0;height:68%;background:transparent;
+  box-shadow:
+    8vw 6vh 0 1px rgba(255,225,190,.5),22vw 10vh 0 1px rgba(255,220,180,.3),
+    38vw 4vh 0 .5px rgba(210,210,230,.4),52vw 13vh 0 1px rgba(255,220,185,.35),
+    68vw 7vh 0 .5px rgba(210,210,230,.25),82vw 16vh 0 1px rgba(255,215,180,.3),
+    12vw 22vh 0 .5px rgba(210,215,230,.2),32vw 20vh 0 1px rgba(255,220,185,.25),
+    58vw 26vh 0 .5px rgba(210,210,230,.3),75vw 18vh 0 1px rgba(255,215,180,.2),
+    5vw 32vh 0 .5px rgba(200,210,220,.15),48vw 35vh 0 .5px rgba(210,210,230,.2),
+    88vw 30vh 0 1px rgba(255,220,180,.15),28vw 40vh 0 .5px rgba(200,210,220,.1),
+    62vw 38vh 0 .5px rgba(210,210,230,.15),18vw 48vh 0 .5px rgba(200,210,220,.1)}
+
+canvas{position:absolute;top:0;left:0;z-index:2}
+.soft-overlay{position:absolute;inset:0;pointer-events:none;z-index:3;
+  background:radial-gradient(ellipse 45% 28% at 50% 42%,rgba(255,200,150,.04) 0%,transparent 70%)}
+
+/* 歌词 */
+.lyric{position:absolute;z-index:4;pointer-events:none;font-weight:600;letter-spacing:2px;
+  text-shadow:0 0 14px currentColor;opacity:.6;transition:opacity .35s}
+#lyric1{top:10%;left:8%;color:#c8b8e8;font-size:18px}
+#lyric2{top:46%;left:50%;color:#88ccd0;font-size:20px}
+#lyric3{bottom:17%;right:10%;color:#f0b8c8;font-size:18px}
+
+#upload-btn{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);z-index:5;padding:10px 24px;border-radius:24px;border:1px solid rgba(255,200,150,.12);background:rgba(9,18,32,.45);color:rgba(255,200,150,.3);font-size:11px;cursor:pointer;letter-spacing:3px;transition:all .5s;font-family:inherit;}
+#upload-btn:hover{background:rgba(255,200,150,.05);color:rgba(255,200,150,.5);border-color:rgba(255,200,150,.25)}
+#file-input{display:none}
+</style>
+</head>
+<body>
+<div class="scene">
+  <div class="sky-glow"></div><div class="moon"></div><div class="stars"></div>
+  <div class="lyric" id="lyric1">都可以随便的</div>
+  <div class="lyric" id="lyric2">你说的</div>
+  <div class="lyric" id="lyric3">我都愿意去</div>
+  <canvas id="c"></canvas><div class="soft-overlay"></div>
+  <button id="upload-btn">上传钢琴曲</button><input type="file" id="file-input" accept="audio/*">
+</div>
+
+<script>
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+let W,H;
+function rs(){W=window.innerWidth;H=window.innerHeight;canvas.width=W;canvas.height=H;canvas.style.width=W+'px';canvas.style.height=H+'px'}
+rs();window.addEventListener('resize',rs);
+
+const pal=['#8899cc','#aa88bb','#cc8899','#dd9977','#eebb88','#aaccbb','#88aacc'];
+const N=7;
+const by=i=>H*.24+i*(H*.08);
+let bx=W/2,by0=by(0)-60,bvy=0,bs=1,bsq=0;
+let col=pal[0],ga=0,bi=-1;
+let bg=new Array(N).fill(0),bb=new Array(N).fill(0);
+let rps=[],ps=[];
+const ds=[];for(let i=0;i<45;i++)ds.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.5+.4,a:Math.random()*.25+.06,vy:-(Math.random()*.12+.04),ph:Math.random()*Math.PI*2});
+
+let ac,an,fd,um=true,bpm=70,lbt=0,eh=[];
+
+function ia(){if(ac)return;ac=new(window.AudioContext||window.webkitAudioContext)();an=ac.createAnalyser();an.fftSize=4096;an.smoothingTimeConstant=.85;fd=new Uint8Array(an.frequencyBinCount)}
+function lf(f){ia();um=false;const r=new FileReader();r.onload=e=>ac.decodeAudioData(e.target.result).then(b=>{if(an.numberOfInputs>0)an.disconnect();const s=ac.createBufferSource();s.buffer=b;s.connect(an);an.connect(ac.destination);s.start(0);s.loop=true});r.readAsArrayBuffer(f)}
+function bt(t){if(um||!an){const iv=60/bpm;return(t%iv)<iv*.08}an.getByteFrequencyData(fd);const sr=ac.sampleRate;const af=(l,h)=>{const si=Math.floor(l/(sr/2)*fd.length),ei=Math.ceil(h/(sr/2)*fd.length);let s=0;for(let i=si;i<=ei;i++)s+=fd[i];return s/((ei-si+1)*255)};const mh=af(500,4000);eh.push(mh);if(eh.length>50)eh.shift();const av=eh.reduce((a,b)=>a+b,0)/eh.length;const ht=mh>av*2.2&&(t-lbt)>.35;if(ht)lbt=t;return ht}
+
+function drb(){
+  for(let i=0;i<N;i++){
+    const y=by(i)+bb[i]*5,w=W*.58-i*(W*.02),x=(W-w)/2;
+    if(bg[i]>.01){ctx.save();ctx.shadowColor=pal[i];ctx.shadowBlur=22*bg[i];ctx.fillStyle=pal[i];ctx.globalAlpha=bg[i]*.28;ctx.beginPath();ctx.roundRect(x-4,y-6,w+8,16,8);ctx.fill();ctx.restore()}
+    ctx.fillStyle=pal[i];ctx.globalAlpha=.82+bg[i]*.18;ctx.beginPath();ctx.roundRect(x,y,w,4,2);ctx.fill();ctx.globalAlpha=1;
+    [-1,1].forEach(s=>{ctx.beginPath();ctx.arc(s===-1?x-6:x+w+6,y+2,4,0,Math.PI*2);ctx.fillStyle=pal[i];ctx.fill()})
+  }
+}
+
+function dbb(){
+  const r=18+ga*2;ctx.save();ctx.translate(bx,by0);ctx.scale(bs+bsq*.12,bs-bsq*.3);
+  const gg=ctx.createRadialGradient(0,0,r*.3,0,0,r*2.5);
+  gg.addColorStop(0,col.replace(')',`,${.35+ga*.3})`).replace('rgb','rgba'));gg.addColorStop(.5,col.replace(')',',.1)').replace('rgb','rgba'));gg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=gg;ctx.beginPath();ctx.arc(0,0,r*2.5,0,Math.PI*2);ctx.fill();
+  const bg2=ctx.createRadialGradient(-r*.3,-r*.3,r*.05,0,0,r);
+  bg2.addColorStop(0,'rgba(255,255,255,.9)');bg2.addColorStop(.15,'rgba(255,255,255,.55)');bg2.addColorStop(.4,col.replace(')',',.2)').replace('rgb','rgba'));bg2.addColorStop(.7,col.replace(')',',.45)').replace('rgb','rgba'));bg2.addColorStop(1,col.replace(')',',.75)').replace('rgb','rgba'));
+  ctx.fillStyle=bg2;ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.6)';ctx.beginPath();ctx.ellipse(-r*.25,-r*.35,r*.33,r*.18,-.4,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+}
+
+function drp(){for(const rp of rps){ctx.strokeStyle=rp.c.replace(')',`,${rp.a})`).replace('rgb','rgba');ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(rp.x,rp.y,rp.r,0,Math.PI*2);ctx.stroke()}}
+function dps(){for(const p of ps){ctx.fillStyle=p.c.replace(')',`,${p.a})`).replace('rgb','rgba');ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill()}}
+function dds(){for(const d of ds){ctx.fillStyle=`rgba(255,230,210,${d.a})`;ctx.beginPath();ctx.arc(d.x,d.y,d.r,0,Math.PI*2);ctx.fill()}}
+
+let lt=0,tm=0;
+function lp(ts){
+  requestAnimationFrame(lp);const dt=Math.min((ts-lt)/1000,.05);if(lt===0){lt=ts;return}lt=ts;tm+=dt;
+  const beat=bt(tm);
+  bvy+=.18*dt*60;by0+=bvy*dt*60;
+  for(let i=0;i<N;i++){const y=by(i);if(by0>=y-13&&by0<y+13&&bvy>0){by0=y-13;bvy=-Math.abs(bvy)*.84;if(beat)bvy-=1.6;bvy=Math.max(bvy,-5.5);col=pal[i];ga=1;bi=i;bg[i]=1;bb[i]=1;bsq=1;bs=.84;rps.push({x:bx,y,r:12,a:.6,c:pal[i]});for(let j=0;j<14;j++)ps.push({x:bx,y,vx:(Math.random()-.5)*4,vy:-(Math.random()*4+2),r:Math.random()*2+1.5,a:.8,c:pal[i]});['lyric1','lyric2','lyric3'].forEach(id=>{const el=document.getElementById(id);el.style.opacity='.85';setTimeout(()=>el.style.opacity='.6',280)});break}}
+  if(by0>H+45){by0=by(0)-60;bvy=0;col=pal[0];ga=0;bsq=0;bs=1}
+  ga*=.94;bsq*=.87;bs+=bs<1?(1-bs)*.13:0;
+  bg=bg.map(g=>g*.88);bb=bb.map(b=>b*.83);
+  rps.forEach(r=>{r.r+=2.8;r.a-=.022});rps=rps.filter(r=>r.a>0);
+  ps.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.1;p.a-=.016});ps=ps.filter(p=>p.a>0);
+  ds.forEach(d=>{d.y+=d.vy;d.a=.06+Math.sin(tm*.75+d.ph)*.06;if(d.y<-10)d.y=H+10});
+  ['lyric1','lyric2','lyric3'].forEach((id,i)=>{const el=document.getElementById(id);const fy=Math.sin(tm*.85+i*1.5)*3;el.style.transform=id==='lyric2'?`translateX(-50%) translateY(${fy}px)`:`translateY(${fy}px)`});
+  ctx.clearRect(0,0,W,H);dds();drb();drp();dps();dbb();
+  if(beat){const g=document.querySelector('.sky-glow');if(g){g.style.opacity='1';setTimeout(()=>g.style.opacity='',200)}}
+}
+
+requestAnimationFrame(lp);ia();
+document.getElementById('upload-btn').addEventListener('click',()=>document.getElementById('file-input').click());
+document.getElementById('file-input').addEventListener('change',function(){if(this.files[0])lf(this.files[0])});
+</script>
+</body>
+</html>

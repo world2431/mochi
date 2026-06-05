@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Claude 看板娘 · Live2D</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:rgba(15,10,28,.95);
+  font-family:'PingFang SC','Microsoft YaHei',sans-serif;
+  min-height:100vh;overflow:hidden;user-select:none;
+}
+/* 加载状态 */
+#loading{
+  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  text-align:center;color:rgba(255,255,255,.6);z-index:10;
+}
+#loading .spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,.1);border-top-color:#c8a0ff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading p{font-size:12px;letter-spacing:1px}
+
+#live2d-canvas{position:fixed;bottom:0;right:0;z-index:99}
+#live2d-canvas canvas{display:block}
+</style>
+</head>
+<body>
+<div id="live2d-canvas"></div>
+<div id="loading"><div class="spinner"></div><p>看板娘加载中…</p></div>
+
+<script>
+// 用本地clone的Live2D widget源码
+(function(){
+  const LOADING = document.getElementById('loading');
+  const CANVAS = document.getElementById('live2d-canvas');
+
+  // 动态加载本地Cubism2 core（不需要额外SDK下载）
+  const SCRIPT = document.createElement('script');
+  SCRIPT.src = '../live2d-widget/dist/live2d.min.js';
+  SCRIPT.onload = function(){
+    LOADING.innerHTML = '<p style="color:#c8a0ff">模型加载中… ✨</p>';
+    // live2d.min.js暴露了全局L2Dwidget对象(Cubism2)
+    // live2d-widget的autoload.js依赖Cubism SDK
+    // 直接用原始demo方式加载
+    loadLive2D();
+  };
+  SCRIPT.onerror = function(){
+    // 如果本地文件加载失败,回退到CDN
+    LOADING.innerHTML = '<p>本地加载失败，尝试CDN…</p>';
+    const fallback = document.createElement('script');
+    fallback.src = 'https://fastly.jsdelivr.net/npm/live2d-widgets@1.0.1/dist/autoload.js';
+    fallback.onload = () => {
+      setTimeout(()=>{
+        if(typeof initWidget === 'function'){
+          initWidget({
+            waifuPath: 'https://fastly.jsdelivr.net/gh/fghrsh/live2d_api/',
+            cdnPath: 'https://fastly.jsdelivr.net/gh/fghrsh/live2d_api/',
+            modelId: 1,
+            display: {position:'right',width:200,height:320,hOffset:0,vOffset:-20},
+            mobile: {show:true,scale:0.5},
+            name: {canvas:'live2d-canvas'},
+            tools: ['switch-model','switch-texture','photo','info','quit'],
+            drag: true,
+            showToggleAfterQuit: true
+          });
+          LOADING.style.display = 'none';
+        }
+      },500);
+    };
+    document.head.appendChild(fallback);
+  };
+  document.head.appendChild(SCRIPT);
+
+  function loadLive2D(){
+    // 回退到autoload.js的方式（本地）
+    const autoScript = document.createElement('script');
+    autoScript.src = '../live2d-widget/dist/autoload.js';
+    autoScript.onload = function(){
+      setTimeout(function(){
+        if (typeof initWidget === 'function') {
+          initWidget({
+            waifuPath: 'https://fastly.jsdelivr.net/gh/fghrsh/live2d_api/',
+            cdnPath: 'https://fastly.jsdelivr.net/gh/fghrsh/live2d_api/',
+            modelId: 1,
+            display: {position:'right',width:200,height:320,hOffset:0,vOffset:-20},
+            mobile: {show:true,scale:0.5},
+            name: {canvas:'live2d-canvas'},
+            tools: ['switch-model','switch-texture','photo','info','quit'],
+            drag: true,
+            showToggleAfterQuit: true
+          });
+          LOADING.style.display = 'none';
+          console.log('✅ Live2D看板娘就绪');
+        } else {
+          LOADING.innerHTML = '<p>⚠️ initWidget未定义</p>';
+        }
+      }, 800);
+    };
+    autoScript.onerror = function(){
+      LOADING.innerHTML = '<p style="color:#ff6b6b">加载失败，请确认live2d-widget已clone到本地</p>';
+    };
+    document.head.appendChild(autoScript);
+  }
+})();
+</script>
+</body>
+</html>

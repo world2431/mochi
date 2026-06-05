@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>时光小河</title>
+<style>
+*{margin:0;padding:0}body{background:#0d1a1a;overflow:hidden;font-family:'PingFang SC','Microsoft YaHei',sans-serif}
+canvas{display:block}#back{position:fixed;top:12px;left:12px;z-index:5;padding:6px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.1);background:rgba(13,26,26,.8);color:rgba(255,255,255,.5);font-size:11px;cursor:pointer;letter-spacing:1px;font-family:inherit;transition:all .3s}#back:hover{color:#fff}
+#toolbar{position:fixed;top:12px;right:12px;z-index:5;display:flex;gap:6px}
+.tbtn{padding:6px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(13,26,26,.8);color:rgba(255,255,255,.4);font-size:10px;cursor:pointer;letter-spacing:1px;font-family:inherit;transition:all .3s}.tbtn:hover{color:#fff;border-color:rgba(255,255,255,.3)}.tbtn.active{color:#88ccdd;border-color:rgba(136,204,221,.4)}.tbtn.place{color:#c8d080;border-color:rgba(200,208,128,.4)}
+#note{position:fixed;z-index:6;background:rgba(20,30,35,.95);border:1px solid rgba(136,204,221,.2);border-radius:14px;padding:16px;width:240px;display:none;backdrop-filter:blur(8px)}
+#note input,#note textarea{width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.3);color:#c8d8d8;font-size:11px;font-family:inherit;margin-bottom:6px;resize:vertical}
+#note input:focus,#note textarea:focus{outline:none;border-color:rgba(136,204,221,.4)}
+#note button{padding:6px 14px;border-radius:10px;border:1px solid rgba(136,204,221,.3);background:rgba(136,204,221,.08);color:#88ccdd;cursor:pointer;font-size:10px;letter-spacing:1px;font-family:inherit}
+#note button.del{border-color:rgba(255,80,80,.3);background:rgba(255,80,80,.08);color:#ff6b6b}
+#hint{position:fixed;bottom:16px;left:0;width:100%;text-align:center;color:rgba(255,255,255,.12);font-size:10px;letter-spacing:2px;pointer-events:none}
+</style>
+</head>
+<body>
+<button id="back" onclick="history.back()">← 返回</button>
+<div id="toolbar">
+  <button class="tbtn" id="btnAddRiver" onclick="addBranch()">+ 支流 (${4})</button>
+  <button class="tbtn" id="btnConnect" onclick="toggleConnect()">~ 连接</button>
+  <button class="tbtn" id="btnReverse" onclick="addReverse()">⟲ 回溯</button>
+  <button class="tbtn place" id="btnAddItem" onclick="addRandomItem()">+ 鱼石草</button>
+</div>
+<div id="note"><input id="noteDate" placeholder="时间点"><textarea id="noteEvent" placeholder="发生了什么…" rows="2"></textarea><div style="display:flex;gap:6px"><button onclick="saveNote()">保存</button><button class="del" onclick="delNote()">删除</button></div></div>
+<div id="hint">拖拽鱼石草到岸上丢弃 · 双击河里添加 · 点击编辑</div>
+<canvas id="c"></canvas>
+<script>
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+let W=innerWidth,H=innerHeight;canvas.width=W;canvas.height=H;
+const params=new URLSearchParams(location.search);
+const characters=JSON.parse(localStorage.getItem('w_characters')||'[]');
+const character=characters.find(c=>c.id===params.get('id'))||characters[0]||{name:'时光',timeline:[]};
+
+// 初始化
+let initItems=(character.timeline||[]).map((t,i)=>({x:120+i*160,y:0,type:i%4===0?'rock':(i%4===1?'fish1':(i%4===2?'fish2':'plant')),date:t.time,event:t.event,variant:i%3}));
+if(initItems.length===0)initItems=[{x:200,y:0,type:'rock',date:'开始',event:'故事的起点',variant:0},{x:400,y:0,type:'fish1',date:'',event:'',variant:1},{x:600,y:0,type:'plant',date:'',event:'',variant:2}];
+let rivers=[{id:'r1',y:H*.35,items:initItems,direction:1}];
+const MAX_RIVERS=4,RIVER_GAP=160;
+let activeRiver='r1',connectMode=false,connectSels=[],activeNote=null,brushItem=null;
+let placingMode=false,placingType='',panX=0,panning=false,panStart=0,panStartX=0;
+let dragging=null,dragOX=0,dragOY=0,dragItem=null,dragRiver=null;
+let connections=[]; // [{fromRiver,fromItem,toRiver,toItem}]
+let dyingItems=[]; // 正在消失的元素动画
+
+function getRiver(id){return rivers.find(r=>r.id===id)}
+function saveData(){
+  const main=rivers[0];if(main&&character){character.timeline=main.items.map(it=>({time:it.date,event:it.event}));localStorage.setItem('w_characters',JSON.stringify(characters))}
+}
+function updateBtnCount(){document.getElementById('btnAddRiver').innerHTML=`+ 支流 (${rivers.length}/${MAX_RIVERS})`}
+
+// ===== 绘制 =====
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#0a1818');bg.addColorStop(.5,'#0d2020');bg.addColorStop(1,'#0a1818');ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  // 背景粒子
+  ctx.fillStyle='rgba(180,200,200,.03)';for(let i=0;i<30;i++){const sx=(Date.now()*.01+i*137)%W,sy=(i*251)%H;ctx.beginPath();ctx.arc(sx,sy,1.5,0,Math.PI*2);ctx.fill()}
+
+  // 水渠连接线
+  connections.forEach(conn=>{
+    const r1=getRiver(conn.fromRiver),r2=getRiver(conn.toRiver);if(!r1||!r2)return;
+    const it1=r1.items.find(it=>it===conn.fromItem),it2=r2.items.find(it=>it===conn.toItem);if(!it1||!it2)return;
+    const x1=it1.x+panX,y1=r1.y+Math.sin(it1.x*.008+Date.now()*.0008)*6;
+    const x2=it2.x+panX,y2=r2.y+Math.sin(it2.x*.008+Date.now()*.0008)*6;
+    ctx.strokeStyle='rgba(136,200,210,.3)';ctx.lineWidth=2;ctx.setLineDash([6,3]);
+    ctx.beginPath();
+    if(conn.fromRiver===conn.toRiver){
+      // U形水渠
+      const mx=(x1+x2)/2,my=Math.min(y1,y2)-60;
+      ctx.moveTo(x1,y1);ctx.quadraticCurveTo(x1,my,mx,my);ctx.quadraticCurveTo(x2,my,x2,y2);
+    }else{
+      // S形连接
+      const mx=(x1+x2)/2;
+      ctx.moveTo(x1,y1);ctx.bezierCurveTo(mx,y1,mx,y2,x2,y2);
+    }
+    ctx.stroke();ctx.setLineDash([]);
+  });
+
+  // 连接模式下选中标记
+  connectSels.forEach(s=>{ctx.strokeStyle='rgba(255,220,100,.7)';ctx.lineWidth=2;ctx.setLineDash([3,3]);ctx.beginPath();ctx.arc(s.x+panX,s.y,25,0,Math.PI*2);ctx.stroke();ctx.setLineDash([])});
+
+  rivers.forEach(river=>{
+    const ry=river.y,rw=Math.max(28,river===rivers[0]?55:32);
+    // 水面
+    ctx.fillStyle='rgba(30,60,70,.6)';ctx.beginPath();ctx.moveTo(0,ry-rw/2);
+    for(let x=0;x<W;x+=10)ctx.lineTo(x,ry-rw/2+Math.sin(x*.008+Date.now()*.0008)*6);
+    ctx.lineTo(W,ry+rw/2);for(let x=W;x>=0;x-=10)ctx.lineTo(x,ry+rw/2+Math.sin(x*.008+Date.now()*.0008)*6);
+    ctx.closePath();ctx.fill();
+    ctx.strokeStyle='rgba(120,180,200,.15)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(0,ry);for(let x=0;x<W;x+=8)ctx.lineTo(x,ry+Math.sin(x*.01+Date.now()*.001)*3);ctx.stroke();
+    ctx.strokeStyle='rgba(80,130,140,.3)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,ry-rw/2);for(let x=0;x<W;x+=8)ctx.lineTo(x,ry-rw/2+Math.sin(x*.008+Date.now()*.0008)*6);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,ry+rw/2);for(let x=0;x<W;x+=8)ctx.lineTo(x,ry+rw/2+Math.sin(x*.008+Date.now()*.0008)*6);ctx.stroke();
+
+    // 河中元素
+    river.items.forEach((item,idx)=>{
+      if(dragging&&dragItem===item)return; // 拖拽中不画原位
+      drawItem(item,item.x+panX,ry+Math.sin(item.x*.008+Date.now()*.0008)*6,false);
+    });
+    // 方向箭头
+    for(let ax=(60-panX%200+200)%200;ax<W+200;ax+=200){const ay=ry+Math.sin(ax*.008+Date.now()*.0008)*6;ctx.fillStyle='rgba(150,200,210,.25)';ctx.font='13px sans-serif';ctx.textAlign='center';ctx.fillText(river.direction>0?'→':'←',ax,ay-8)}
+  });
+
+  // 拖拽中的元素
+  if(dragging){const mx=dragging.x+panX;drawItem(dragItem,mx,dragging.y,true)}
+
+  // 正在消失的元素
+  dyingItems.forEach((d,i)=>{d.life-=.02;if(d.life>0){ctx.globalAlpha=d.life;drawItem(d.item,d.x+panX,d.y,d.type==='die');ctx.globalAlpha=1}});
+  dyingItems=dyingItems.filter(d=>d.life>0);
+}
+
+function drawItem(item,x,y,highlight){
+  const v=item.variant||0;
+  if(item.type.startsWith('fish')){
+    const sx=13+v*4,sy=7+v*3;const colors=['#e89860','#c87840','#f0a870'];ctx.fillStyle=highlight?'#ffb8a0':colors[v];
+    ctx.beginPath();ctx.ellipse(x,y-6,sx+Math.sin(Date.now()*.004+v)*2,sy,.12,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.2)';ctx.lineWidth=.5;for(let s=0;s<3;s++){ctx.beginPath();ctx.arc(x-3+s*5,y-7,sx*.3,0,Math.PI);ctx.stroke()}
+    ctx.fillStyle='#1a1a1a';ctx.beginPath();ctx.arc(x+sx*.5,y-8,2.2,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x+sx*.5+1,y-9,.7,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(255,200,150,.6)';ctx.beginPath();ctx.moveTo(x-sx*.4,y-6);ctx.lineTo(x-sx-5,y-12);ctx.lineTo(x-sx-7,y-1);ctx.closePath();ctx.fill();
+    ctx.fillStyle='rgba(255,200,150,.6)';ctx.beginPath();ctx.moveTo(x-sx*.1,y-12);ctx.lineTo(x+sx*.2,y-16);ctx.lineTo(x+sx*.4,y-11);ctx.closePath();ctx.fill();
+    if(highlight||brushItem===item){ctx.strokeStyle='rgba(255,255,200,.6)';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(x,y-6,sx+5,sy+3,.12,0,Math.PI*2);ctx.stroke()}
+  }else if(item.type==='rock'){
+    const rx=9+v*5,ry2=6+v*3;ctx.fillStyle=highlight?'#b0c0c8':'#5a6872';
+    ctx.beginPath();ctx.ellipse(x,y+4,rx+Math.sin(v)*2,ry2+Math.cos(v)*1.5,.3,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.08)';ctx.beginPath();ctx.ellipse(x-2,y+2,rx*.4,ry2*.3,-.2,0,Math.PI*2);ctx.fill();ctx.strokeStyle='rgba(0,0,0,.2)';ctx.lineWidth=1.5;ctx.stroke();
+    if(highlight||brushItem===item){ctx.strokeStyle='rgba(255,255,200,.6)';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(x,y+4,rx+4,ry2+3,.3,0,Math.PI*2);ctx.stroke()}
+  }else if(item.type==='plant'){
+    const sway=Math.sin(Date.now()*.003+v)*4;ctx.strokeStyle=['#5a9460','#4a8450','#68a870'][v];ctx.lineWidth=2+v*.5;ctx.lineCap='round';
+    for(let b=0;b<3+v;b++){ctx.beginPath();ctx.moveTo(x-4+b*6,y+12);ctx.quadraticCurveTo(x-6+b*4+sway,y-8,x-2+b*3+sway*1.5,y-22);ctx.stroke()}
+    if(highlight||brushItem===item){ctx.strokeStyle='rgba(255,255,200,.5)';ctx.lineWidth=3;for(let b=0;b<2;b++){ctx.beginPath();ctx.moveTo(x-2+b*8,y+14);ctx.quadraticCurveTo(x-4+b*5+sway,y-10,x+sway*1.5,y-24);ctx.stroke()}}
+  }
+  if(item.date){ctx.fillStyle='rgba(255,255,255,.3)';ctx.font='bold 9px "PingFang SC","Microsoft YaHei",sans-serif';ctx.textAlign='center';ctx.fillText(item.date,x,y+22)}
+}
+
+// ===== 交互 =====
+canvas.addEventListener('mousedown',e=>{
+  if(e.button===1||(!brushItem&&!placingMode&&!connectMode)){panning=true;panStart=e.clientX;panStartX=panX;canvas.style.cursor='grabbing';return}
+  if(brushItem&&!placingMode&&!connectMode&&!e.shiftKey){
+    // 开始拖拽
+    dragging={x:e.clientX-panX,y:e.clientY};dragOX=dragging.x;dragOY=dragging.y;dragItem=brushItem;
+    rivers.forEach(r=>{const idx=r.items.indexOf(dragItem);if(idx>=0)dragRiver=r});
+  }
+});
+canvas.addEventListener('mousemove',e=>{
+  const mx=e.clientX-panX,my=e.clientY;
+  if(panning){panX=panStartX+(e.clientX-panStart);return}
+  if(dragging){dragging.x=mx;dragging.y=my;canvas.style.cursor='grabbing';return}
+  brushItem=null;
+  rivers.forEach(r=>{r.items.forEach(item=>{const ix=item.x+panX;const iy=r.y+Math.sin(ix*.008+Date.now()*.0008)*6;if(Math.abs(e.clientX-ix)<30&&Math.abs(my-iy)<30)brushItem=item})});
+  canvas.style.cursor=brushItem?'grab':placingMode?'crosshair':connectMode?'crosshair':'default';
+});
+canvas.addEventListener('mouseup',e=>{
+  if(dragging&&dragItem){
+    const mx=e.clientX-panX,my=e.clientY;
+    // 判断是否拖到岸上
+    let inRiver=false;
+    rivers.forEach(r=>{if(my>r.y-40&&my<r.y+40)inRiver=true});
+    if(!inRiver&&dragRiver){
+      // 扔出→消失
+      dyingItems.push({item:dragItem,x:mx,y:my,life:1,type:'die'});dragRiver.items=dragRiver.items.filter(it=>it!==dragItem);saveData();
+    }else if(inRiver){
+      // 放回河里→移到新位置
+      dragItem.x=mx;dragItem.y=0;
+    }
+    dragging=null;dragItem=null;dragRiver=null;canvas.style.cursor='default';
+  }
+  panning=false;
+});
+canvas.addEventListener('click',e=>{
+  if(panning||dragging)return;
+  const mx=e.clientX-panX,my=e.clientY;
+  if(placingMode){
+    let hr=null;rivers.forEach(r=>{if(e.clientY>r.y-40&&e.clientY<r.y+40)hr=r});
+    if(hr){hr.items.push({x:mx,y:0,type:placingType,date:'',event:'',variant:Math.floor(Math.random()*3)});saveData()}
+    placingMode=false;document.getElementById('btnAddItem').classList.remove('active');document.getElementById('btnAddItem').textContent='+ 鱼石草';return;
+  }
+  if(connectMode){
+    let found=null;rivers.forEach(r=>{r.items.forEach(item=>{const iy=r.y+Math.sin(item.x*.008+Date.now()*.0008)*6;if(Math.hypot(e.clientX-(item.x+panX),e.clientY-iy)<30){found={x:item.x,y:iy,item,river:r.id}}})});
+    if(found){connectSels.push(found);if(connectSels.length>=2){const s1=connectSels[0],s2=connectSels[1];connections.push({fromRiver:s1.river,fromItem:s1.item,toRiver:s2.river,toItem:s2.item});connectSels=[];connectMode=false;document.getElementById('btnConnect').classList.remove('active')}}
+    return;
+  }
+  // 找元素编辑
+  let hit=null;rivers.forEach(r=>{r.items.forEach(item=>{const iy=r.y+Math.sin(item.x*.008+Date.now()*.0008)*6;if(Math.hypot(e.clientX-(item.x+panX),e.clientY-iy)<30)hit={item,river:r,x:item.x+panX,y:iy}})});
+  if(hit){showNote(e.clientX,e.clientY,hit)}else{hideNote()}
+});
+canvas.addEventListener('contextmenu',e=>{e.preventDefault();let hit=null;const mx=e.clientX-panX;rivers.forEach(r=>{r.items.forEach((item,i)=>{const iy=r.y+Math.sin(item.x*.008+Date.now()*.0008)*6;if(Math.hypot(e.clientX-(item.x+panX),e.clientY-iy)<30)hit={item,river:r,idx:i}})});if(hit){hit.river.items.splice(hit.idx,1);saveData()}});
+canvas.addEventListener('dblclick',e=>{if(placingMode||connectMode||dragging)return;const mx=e.clientX-panX;let hr=null;rivers.forEach(r=>{if(e.clientY>r.y-40&&e.clientY<r.y+40)hr=r});if(hr){hr.items.push({x:mx,y:0,type:['fish1','fish2','rock','plant'][Math.floor(Math.random()*4)],date:'',event:'',variant:Math.floor(Math.random()*3)});saveData()}});
+
+// 便签
+function showNote(x,y,hit){const n=document.getElementById('note');n.style.display='block';n.style.left=Math.min(x,W-260)+'px';n.style.top=Math.min(y,H-180)+'px';document.getElementById('noteDate').value=hit.item.date||'';document.getElementById('noteEvent').value=hit.item.event||'';activeNote=hit}
+function hideNote(){document.getElementById('note').style.display='none';activeNote=null}
+function saveNote(){if(!activeNote)return;activeNote.item.date=document.getElementById('noteDate').value.trim();activeNote.item.event=document.getElementById('noteEvent').value.trim();hideNote();saveData()}
+function delNote(){if(!activeNote)return;activeNote.river.items=activeNote.river.items.filter(it=>it!==activeNote.item);hideNote();saveData()}
+
+// 工具栏
+function addBranch(){if(rivers.length>=MAX_RIVERS)return;const last=rivers[rivers.length-1];rivers.push({id:'r'+Date.now(),y:Math.min(H-60,(last?last.y:0)+RIVER_GAP),items:[],direction:1});saveData();updateBtnCount()}
+function toggleConnect(){connectMode=!connectMode;document.getElementById('btnConnect').classList.toggle('active',connectMode);if(!connectMode)connectSels=[]}
+function addReverse(){if(rivers.length>=MAX_RIVERS)return;const first=rivers[0];rivers.unshift({id:'r'+Date.now(),y:Math.max(60,(first?first.y:0)-RIVER_GAP),items:[],direction:-1});saveData();updateBtnCount()}
+function addRandomItem(){const types=['fish1','fish2','rock','plant'];placingType=types[Math.floor(Math.random()*types.length)];placingMode=true;const b=document.getElementById('btnAddItem');b.classList.add('active');b.textContent='点击河中放置';setTimeout(()=>{if(placingMode){b.textContent='+ 鱼石草';b.classList.remove('active');placingMode=false}},5000)}
+
+updateBtnCount();
+addEventListener('resize',()=>{W=innerWidth;H=innerHeight;canvas.width=W;canvas.height=H});
+function loop(){draw();requestAnimationFrame(loop)}loop();
+</script>
+</body>
+</html>

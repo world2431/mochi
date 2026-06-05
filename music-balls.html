@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🎵 音乐小球 · Neon Beats</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;font-family:'PingFang SC','Microsoft YaHei',sans-serif}
+canvas{display:block}
+#ui{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);pointer-events:none;z-index:2;background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:8px 20px;color:rgba(255,255,255,.5);font-size:11px;letter-spacing:2px;white-space:nowrap}
+#upload-btn{position:absolute;top:16px;right:16px;z-index:3;pointer-events:all;padding:8px 16px;border-radius:20px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.6);color:rgba(255,255,255,.6);font-size:11px;cursor:pointer;letter-spacing:1px;transition:all .3s;font-family:inherit}
+#upload-btn:hover{background:rgba(255,255,255,.1);color:#fff}
+#file-input{display:none}
+</style>
+</head>
+<body>
+<button id="upload-btn">🎧 上传音乐</button>
+<input type="file" id="file-input" accept="audio/*">
+<div id="ui">🎵 デート · RADWIMPS · 124 BPM</div>
+
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+// ===== 渲染器 / 场景 / 相机 =====
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x04040c);
+scene.fog = new THREE.Fog(0x04040c,4,14);
+
+const camera = new THREE.PerspectiveCamera(48,1,0.1,25);
+camera.position.set(0,1.2,6.5);
+camera.lookAt(0,0,0);
+
+// ===== 后期 =====
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene,camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(800,600),0.8,0.4,0.2);
+bloom.threshold = 0.08;
+bloom.strength = 1.5;
+bloom.radius = 0.5;
+composer.addPass(bloom);
+
+// ===== 灯光 =====
+scene.add(new THREE.AmbientLight(0x111122,1.8));
+const l1 = new THREE.PointLight(0xffeedd,35,14,1.5);l1.position.set(2,3,5);scene.add(l1);
+const l2 = new THREE.PointLight(0x8866ff,18,10,1.5);l2.position.set(-3,-1,2);scene.add(l2);
+
+// ===== 地面（反光黑镜） =====
+const floorGeo = new THREE.PlaneGeometry(10,10);
+const floorMat = new THREE.MeshStandardMaterial({color:0x0a0a14,roughness:0.4,metalness:0.8});
+const floor = new THREE.Mesh(floorGeo,floorMat);
+floor.rotation.x = -Math.PI/2;floor.position.y = -2.6;
+scene.add(floor);
+
+// ===== 弹跳横杆 =====
+const BAR_COUNT = 6;
+const bars = [];
+const barColors = [0xff4080,0x40c0ff,0xffa040,0x80ff60,0xff60d0,0xffdd40];
+
+for(let i=0;i<BAR_COUNT;i++){
+  const w = 3.5 - i*0.3;
+  const y = -2.0 + i*0.75;
+  const geo = new THREE.CylinderGeometry(0.05,0.05,w,16);
+  geo.rotateZ(Math.PI/2);
+  const mat = new THREE.MeshStandardMaterial({
+    color:barColors[i],roughness:0.15,metalness:0.4,
+    emissive:barColors[i],emissiveIntensity:0.4
+  });
+  const bar = new THREE.Mesh(geo,mat);
+  bar.position.y = y;
+  bar.userData = {y,color:barColors[i],glow:0};
+  scene.add(bar);
+  bars.push(bar);
+
+  // 杆两端小球装饰
+  [-1,1].forEach(side=>{
+    const endGeo = new THREE.SphereGeometry(0.08,16,16);
+    const endMat = new THREE.MeshStandardMaterial({color:barColors[i],roughness:0.1,metalness:0.2,emissive:barColors[i],emissiveIntensity:0.8});
+    const endBall = new THREE.Mesh(endGeo,endMat);
+    endBall.position.set(side*(w/2),y,0);
+    scene.add(endBall);
+  });
+}
+
+// ===== 音乐小球 =====
+const BALL_COUNT = 6;
+const balls = [];
+const ballColors = [0xff4080,0x40c0ff,0xffa040,0x80ff60,0xff60d0,0xffdd40];
+
+for(let i=0;i<BALL_COUNT;i++){
+  const r = 0.16;
+  const geo = new THREE.SphereGeometry(r,64,64);
+  const mat = new THREE.MeshStandardMaterial({
+    color:ballColors[i],roughness:0.08,metalness:0.1,
+    emissive:ballColors[i],emissiveIntensity:1.5
+  });
+  const ball = new THREE.Mesh(geo,mat);
+  ball.position.set((i-2.5)*0.65,2+i*0.3,0);
+  ball.userData = {
+    vy:0,targetBar:i%6,baseX:(i-2.5)*0.65,
+    color:ballColors[i],trailTimer:0
+  };
+  scene.add(ball);
+  balls.push(ball);
+
+  // 外层光晕
+  const gGeo = new THREE.SphereGeometry(r*2.2,32,32);
+  const gMat = new THREE.MeshBasicMaterial({color:ballColors[i],transparent:true,opacity:0.2,blending:THREE.AdditiveBlending,depthWrite:false});
+  ball.add(new THREE.Mesh(gGeo,gMat));
+}
+
+// ===== 拖尾系统 =====
+const trailGroups = [];
+for(let i=0;i<BALL_COUNT;i++){
+  const tg = [];
+  for(let j=0;j<30;j++){
+    const tGeo = new THREE.SphereGeometry(0.03+j*0.002,6,6);
+    const tMat = new THREE.MeshBasicMaterial({color:ballColors[i],transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false});
+    const t = new THREE.Mesh(tGeo,tMat);
+    t.visible = false;
+    t.userData = {life:0};
+    scene.add(t);
+    tg.push(t);
+  }
+  trailGroups.push(tg);
+}
+
+// ===== 击打爆发粒子 =====
+const hitPs = [];
+for(let i=0;i<300;i++){
+  const geo = new THREE.SphereGeometry(0.025,4,4);
+  const mat = new THREE.MeshBasicMaterial({color:0xffffff,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,opacity:0});
+  const p = new THREE.Mesh(geo,mat);
+  p.visible = false;
+  p.userData = {life:0,vx:0,vy:0,vz:0};
+  scene.add(p);
+  hitPs.push(p);
+}
+
+function spawnHit(x,y,z,color,n=25){
+  let spawned = 0;
+  for(const p of hitPs){
+    if(p.userData.life<=0 && spawned<n){
+      p.position.set(x,y,z);
+      p.userData.vx = (Math.random()-0.5)*0.15;
+      p.userData.vy = Math.random()*0.12+0.04;
+      p.userData.vz = (Math.random()-0.5)*0.15;
+      p.userData.life = 0.4+Math.random()*0.6;
+      p.material.color.set(color);
+      p.material.opacity = 1;
+      p.visible = true;
+      spawned++;
+    }
+    if(spawned>=n)break;
+  }
+}
+
+// ===== 音频引擎 =====
+let audioCtx,analyser,freqData,useMetronome=true,currentBPM=124;
+let lastBeatTime=0,beatCount=0;
+let energyHistory=[],smoothedBass=0,beatDecay=0;
+const EH_SIZE=43,MIN_BI=0.22;
+
+function initAudio(){
+  if(audioCtx)return;
+  audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  analyser=audioCtx.createAnalyser();
+  analyser.fftSize=2048;analyser.smoothingTimeConstant=0.8;
+  freqData=new Uint8Array(analyser.frequencyBinCount);
+}
+
+function loadAudio(file){
+  initAudio();useMetronome=false;
+  document.getElementById('ui').textContent='🎵 '+file.name;
+  const r=new FileReader();
+  r.onload=e=>audioCtx.decodeAudioData(e.target.result).then(buf=>{
+    if(analyser.numberOfInputs>0)analyser.disconnect();
+    const s=audioCtx.createBufferSource();s.buffer=buf;
+    s.connect(analyser);analyser.connect(audioCtx.destination);
+    s.start(0);s.loop=true;
+    detectBPM(buf);
+  });
+  r.readAsArrayBuffer(file);
+}
+
+function detectBPM(buf){
+  const ch=buf.getChannelData(0),ws=Math.floor(buf.sampleRate*0.04);
+  const ens=[];
+  for(let i=0;i<ch.length;i+=ws){let s=0;for(let j=i;j<Math.min(i+ws,ch.length);j++)s+=Math.abs(ch[j]);ens.push(s/Math.min(ws,ch.length-i))}
+  const th=ens.reduce((a,b)=>a+b,0)/ens.length*1.8,peaks=[];
+  for(let i=2;i<ens.length-2;i++)if(ens[i]>th&&ens[i]>ens[i-1]&&ens[i]>ens[i+1])peaks.push(i);
+  if(peaks.length>3){let t=0;for(let i=1;i<peaks.length;i++)t+=peaks[i]-peaks[i-1];const as=t/(peaks.length-1)*ws/buf.sampleRate;currentBPM=Math.round(60/as);if(currentBPM<60||currentBPM>200)currentBPM=124}
+}
+
+function getFrame(time){
+  if(useMetronome||!analyser){
+    const iv=60/currentBPM,p=(time%iv)/iv,isB=p<0.12;
+    return{bass:isB?0.85+Math.random()*0.15:0.03+Math.random()*0.04,isBeat:isB};
+  }
+  analyser.getByteFrequencyData(freqData);
+  const sr=audioCtx.sampleRate;
+  const avgF=(l,h)=>{const si=Math.floor(l/(sr/2)*freqData.length),ei=Math.ceil(h/(sr/2)*freqData.length);let s=0;for(let i=si;i<=ei;i++)s+=freqData[i];return s/((ei-si+1)*255)};
+  const bass=avgF(20,140);
+  energyHistory.push(bass);if(energyHistory.length>EH_SIZE)energyHistory.shift();
+  const ae=energyHistory.reduce((a,b)=>a+b,0)/energyHistory.length;
+  const isBeat=bass>ae*1.5&&(time-lastBeatTime)>MIN_BI;
+  if(isBeat){lastBeatTime=time;beatCount++}
+  return{bass,isBeat};
+}
+
+// ===== 动画 =====
+const clock=new THREE.Clock();let time=0;
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=Math.min(clock.getDelta(),0.1);time+=dt;
+  const f=getFrame(time);
+  smoothedBass=smoothedBass*0.88+f.bass*0.12;
+  beatDecay=f.isBeat?1:beatDecay*0.93;
+
+  // --- 横杆发光 ---
+  bars.forEach(b=>{b.userData.glow*=0.88;b.material.emissiveIntensity=0.4+b.userData.glow*2.5});
+
+  // --- 小球物理 ---
+  balls.forEach((ball,i)=>{
+    const ud=ball.userData;
+    const tb=bars[ud.targetBar];
+    ud.vy -= 11.5*dt;
+    ball.position.y += ud.vy*dt;
+
+    const barY = tb.userData.y;
+    if(ball.position.y <= barY+0.18 && ud.vy<0){
+      ball.position.y = barY+0.18;
+      ud.vy = 2.4+f.bass*3.5;
+      if(f.isBeat)ud.vy+=1.8;
+      ud.targetBar = Math.floor(Math.random()*BAR_COUNT);
+
+      // 横杆发光
+      tb.userData.glow=1;tb.material.emissiveIntensity=2.8;
+      // 粒子
+      spawnHit(ball.position.x,ball.position.y,ball.position.z,tb.userData.color,20);
+    }
+
+    // 水平归位
+    ball.position.x += (ud.baseX-ball.position.x)*0.03;
+    if(Math.abs(ball.position.z)>0.8)ball.position.z*=0.94;
+  });
+
+  // --- 拖尾 ---
+  balls.forEach((ball,i)=>{
+    const ud=ball.userData;
+    ud.trailTimer+=dt;
+    if(ud.trailTimer>0.025){
+      ud.trailTimer=0;
+      for(const t of trailGroups[i]){
+        if(t.userData.life<=0){
+          t.userData.life=0.35;
+          t.position.copy(ball.position);
+          t.material.opacity=0.55;
+          t.visible=true;
+          break;
+        }
+      }
+    }
+    for(const t of trailGroups[i]){
+      if(t.userData.life>0){
+        t.userData.life-=dt;
+        t.position.y-=0.4*dt;
+        t.material.opacity=t.userData.life*1.6;
+        if(t.userData.life<=0)t.visible=false;
+      }
+    }
+  });
+
+  // --- 击中粒子 ---
+  for(const p of hitPs){
+    if(p.userData.life>0){
+      p.userData.life-=dt;
+      p.position.x+=p.userData.vx;p.position.y+=p.userData.vy;p.position.z+=p.userData.vz;
+      p.material.opacity=p.userData.life*2;
+      if(p.userData.life<=0)p.visible=false;
+    }
+  }
+
+  // --- 相机微动 ---
+  camera.position.x=Math.sin(time*0.3)*0.6;
+  camera.position.y=1.2+Math.sin(time*0.5)*0.2+beatDecay*0.1;
+  camera.lookAt(0,-0.3,0);
+
+  // --- bloom 节拍增强 ---
+  bloom.strength=f.isBeat?2.0:bloom.strength+(1.5-bloom.strength)*0.1;
+
+  composer.render();
+}
+
+// ===== 响应式 =====
+function resize(){const w=window.innerWidth,h=window.innerHeight;renderer.setSize(w,h);composer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix()}
+window.addEventListener('resize',resize);resize();
+
+// ===== 事件 =====
+document.getElementById('upload-btn').addEventListener('click',()=>document.getElementById('file-input').click());
+document.getElementById('file-input').addEventListener('change',function(){if(this.files[0])loadAudio(this.files[0])});
+
+// ===== 启动 =====
+initAudio();animate();
+console.log('✅ 音乐小球 · Neon Beats 已就绪');
+</script>
+</body>
+</html>
