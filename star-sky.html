@@ -79,7 +79,6 @@ canvas.addEventListener('touchmove',e=>{e.preventDefault();if(panning){const t=e
 canvas.addEventListener('touchend',e=>{panning=false;const i=brushStar;if(i!=null){const pop=document.getElementById('popup');pop.querySelector('.star-text').textContent=stars[i].text;pop.querySelector('.star-date').textContent=stars[i].date;pop.style.display='block';pop.style.left=Math.min(e.changedTouches[0].clientX,W-280)+'px';pop.style.top=Math.min(e.changedTouches[0].clientY,H-180)+'px'}else{document.getElementById('popup').style.display='none'}});
 
 window.addEventListener('resize',()=>{W=innerWidth;H=innerHeight;canvas.width=W;canvas.height=H});
-const cl=new THREE?.Clock?.()||{getDelta:()=>.016};
 function loop(){draw();requestAnimationFrame(loop)}loop();
 </script>
 </body>
