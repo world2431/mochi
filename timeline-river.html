@@ -27,9 +27,8 @@ canvas{display:block}#back{position:fixed;top:12px;left:12px;z-index:5;padding:6
 <canvas id="c"></canvas>
 <script>
 const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
-function initSize(){W=Math.max(innerWidth||300,300);H=Math.max(innerHeight||500,500);canvas.width=W;canvas.height=H}
-let W,H;initSize();
-window.addEventListener('resize',()=>{initSize();if(rivers[0])rivers[0].y=H*.35});
+let W=Math.max(innerWidth||300,300),H=Math.max(innerHeight||500,500);canvas.width=W;canvas.height=H;
+window.addEventListener('resize',()=>{W=Math.max(innerWidth||300,300);H=Math.max(innerHeight||500,500);canvas.width=W;canvas.height=H});
 
 const params=new URLSearchParams(location.search);
 let characters=[],character={name:'时光',timeline:[]};
