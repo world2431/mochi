@@ -9,27 +9,8 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--paper);font-family:'ZCOOL XiaoWei','STKaiti','KaiTi','PingFang SC',serif;overflow:hidden;height:100vh;display:flex;align-items:center;justify-content:center}
 
-/* 水墨背景 */
-.ink-bg{position:fixed;inset:0;pointer-events:none;z-index:0}
-.ink-splash{position:absolute;border-radius:50%;background:radial-gradient(circle,rgba(30,20,12,.08) 0%,rgba(30,20,12,.03) 40%,transparent 70%);animation:inkSpread 20s ease-in-out infinite}
-.ink-splash:nth-child(1){width:600px;height:600px;top:-20%;left:-10%;animation-delay:0s}
-.ink-splash:nth-child(2){width:500px;height:400px;bottom:-15%;right:-8%;animation-delay:-7s}
-.ink-splash:nth-child(3){width:400px;height:500px;top:30%;right:-15%;animation-delay:-14s}
-.ink-splash:nth-child(4){width:300px;height:300px;top:50%;left:20%;animation-delay:-3s}
-@keyframes inkSpread{0%,100%{transform:scale(1) translate(0,0);opacity:.6}50%{transform:scale(1.3) translate(30px,-20px);opacity:.3}}
-
-/* 墨点 */
-.ink-dot{position:absolute;background:radial-gradient(circle,rgba(20,15,8,.15) 0%,rgba(20,15,8,.05) 50%,transparent 70%);border-radius:50%;animation:dotFloat 12s ease-in-out infinite}
-.ink-dot:nth-child(5){width:120px;height:80px;top:15%;left:60%;animation-delay:-2s}
-.ink-dot:nth-child(6){width:90px;height:60px;top:70%;left:25%;animation-delay:-8s}
-.ink-dot:nth-child(7){width:100px;height:70px;bottom:20%;right:30%;animation-delay:-5s}
-@keyframes dotFloat{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(15px,-10px) scale(1.2)}}
-
-/* 墨迹线条 */
-.ink-line{position:absolute;height:1px;background:linear-gradient(90deg,transparent,rgba(20,15,8,.08),transparent);animation:lineDrift 15s ease-in-out infinite}
-.ink-line:nth-child(8){width:300px;top:25%;left:10%;animation-delay:0s}
-.ink-line:nth-child(9){width:200px;top:60%;right:15%;animation-delay:-6s}
-@keyframes lineDrift{0%,100%{opacity:.3;transform:translateX(0)}50%{opacity:.6;transform:translateX(40px)}}
+/* 水墨山水背景 Canvas */
+#inkPainting{position:fixed;inset:0;pointer-events:none;z-index:0;width:100%;height:100%}
 
 /* 主卡片 */
 .login-card{position:relative;z-index:1;background:rgba(250,248,244,.85);backdrop-filter:blur(12px);border:1px solid rgba(180,160,130,.2);border-radius:24px;padding:48px 40px 36px;width:380px;text-align:center;box-shadow:0 8px 60px rgba(0,0,0,.06),0 0 0 1px rgba(180,160,130,.1)}
@@ -57,11 +38,7 @@ body{background:var(--paper);font-family:'ZCOOL XiaoWei','STKaiti','KaiTi','Ping
 </style>
 </head>
 <body>
-<div class="ink-bg">
-  <div class="ink-splash"></div><div class="ink-splash"></div><div class="ink-splash"></div><div class="ink-splash"></div>
-  <div class="ink-dot"></div><div class="ink-dot"></div><div class="ink-dot"></div>
-  <div class="ink-line"></div><div class="ink-line"></div>
-</div>
+<canvas id="inkPainting"></canvas>
 
 <div class="login-card" id="loginCard">
   <div class="title-wrap"><div class="title">墨 池</div><div class="subtitle">AI 写 作 工 坊</div></div>
@@ -74,6 +51,61 @@ body{background:var(--paper);font-family:'ZCOOL XiaoWei','STKaiti','KaiTi','Ping
 </div>
 
 <script>
+// ===== 水墨山水画 =====
+(function(){const c=document.getElementById('inkPainting'),ctx=c.getContext('2d');let w,h;
+function rs(){w=innerWidth;h=innerHeight;c.width=w;c.height=h;drawPainting()}rs();window.addEventListener('resize',rs);
+
+function ink(color,alpha){return color.replace(')',`,${alpha})`).replace('rgb','rgba')}
+
+function drawPainting(){
+  ctx.clearRect(0,0,w,h);ctx.fillStyle='#f0ebe0';ctx.fillRect(0,0,w,h);
+  const paperGrad=ctx.createRadialGradient(w*.4,h*.3,0,w*.5,h*.5,w);paperGrad.addColorStop(0,'#f5f0e8');paperGrad.addColorStop(1,'#e8e0d5');ctx.fillStyle=paperGrad;ctx.fillRect(0,0,w,h);
+
+  // 淡墨远山(远→近3层)
+  [{y:.38,h:.24,a:.04},{y:.42,h:.2,a:.06},{y:.46,h:.18,a:.1}].forEach(({y,h2,a})=>{
+    ctx.fillStyle=ink('rgba(40,30,20',a);ctx.beginPath();ctx.moveTo(0,y*h);
+    for(let x=0;x<w;x+=w/20){ctx.lineTo(x,(y+Math.sin(x*.003)*h2/2)*h)}ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.closePath();ctx.fill()
+  });
+
+  // 中景山体(浓墨)
+  ctx.fillStyle='rgba(35,28,18,.15)';ctx.beginPath();ctx.moveTo(0,h*.58);
+  for(let x=0;x<w;x+=w/30){const peak=.12+Math.sin(x*.002)*.04+Math.sin(x*.005)*.03+Math.sin(x*.008)*.02;ctx.lineTo(x,h*(.58-peak))}ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.closePath();ctx.fill();
+
+  // 近山(浓)
+  ctx.fillStyle='rgba(25,20,12,.2)';ctx.beginPath();ctx.moveTo(0,h*.68);
+  for(let x=0;x<w;x+=w/40){const peak=.06+Math.sin(x*.003+1)*.03+Math.sin(x*.007)*.02;ctx.lineTo(x,h*(.68-peak))}ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.closePath();ctx.fill();
+
+  // 江水
+  const waterGrad=ctx.createLinearGradient(0,h*.72,0,h);waterGrad.addColorStop(0,'rgba(180,170,155,.08)');waterGrad.addColorStop(.5,'rgba(180,170,155,.04)');waterGrad.addColorStop(1,'rgba(200,190,175,.06)');ctx.fillStyle=waterGrad;ctx.fillRect(0,h*.72,w,h*.28);
+  // 水纹
+  ctx.strokeStyle='rgba(160,150,140,.04)';ctx.lineWidth=.5;
+  for(let i=0;i<8;i++){ctx.beginPath();const yw=h*(.75+i*.025);for(let x=0;x<w;x+=5){ctx.lineTo(x,yw+Math.sin(x*.004+i)*3)}ctx.stroke()}
+
+  // 竹(左)
+  for(let i=0;i<3;i++){const bx=w*(.08+i*.06);ctx.strokeStyle=ink('rgba(30,25,15',.15+i*.03);ctx.lineWidth=2+i*.5;ctx.beginPath();ctx.moveTo(bx,h*.72);ctx.quadraticCurveTo(bx-15,h*.55,bx+5,h*.35+(i*.08));ctx.stroke();
+    for(let j=0;j<5;j++){const jy=h*(.38+j*.08);ctx.strokeStyle=ink('rgba(40,35,20',.1);ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(bx+5,iy(jy));ctx.lineTo(bx+20,jy-10);ctx.stroke()}
+  }
+
+  // 松(右)
+  const tx=w*.85;ctx.strokeStyle='rgba(25,20,12,.2)';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(tx,h*.72);ctx.quadraticCurveTo(tx-10,h*.5,tx-5,h*.3);ctx.stroke();
+  ctx.fillStyle='rgba(25,20,12,.12)';ctx.beginPath();ctx.ellipse(tx-5,h*.32,35,20,-.1,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(tx-12,h*.38,25,15,-.3,0,Math.PI*2);ctx.fill();
+
+  // 小舟
+  ctx.strokeStyle='rgba(30,25,15,.15)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(w*.35,h*.78);ctx.quadraticCurveTo(w*.38,h*.76,w*.42,h*.78);ctx.stroke();
+  ctx.fillStyle='rgba(30,25,15,.1)';ctx.beginPath();ctx.moveTo(w*.36,h*.78);ctx.lineTo(w*.38,h*.75);ctx.lineTo(w*.41,h*.78);ctx.closePath();ctx.fill();
+  // 渔人
+  ctx.fillStyle='rgba(25,20,12,.15)';ctx.beginPath();ctx.arc(w*.38,h*.74,4,0,Math.PI*2);ctx.fill();
+
+  // 雾气
+  for(let i=0;i<5;i++){const fogGrad=ctx.createLinearGradient(0,h*(.4+i*.06),0,h*(.7+i*.06));fogGrad.addColorStop(0,'rgba(255,255,255,0)');fogGrad.addColorStop(.5,'rgba(255,255,255,.03)');fogGrad.addColorStop(1,'rgba(255,255,255,0)');ctx.fillStyle=fogGrad;ctx.fillRect(0,h*(.4+i*.06),w,h*(.15))}
+
+  // 月亮
+  const moonGrad=ctx.createRadialGradient(w*.78,h*.18,5,w*.78,h*.18,40);moonGrad.addColorStop(0,'rgba(255,250,240,.15)');moonGrad.addColorStop(1,'rgba(255,255,255,0)');ctx.fillStyle=moonGrad;ctx.beginPath();ctx.arc(w*.78,h*.18,35,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(255,250,238,.25)';ctx.beginPath();ctx.arc(w*.78,h*.18,18,0,Math.PI*2);ctx.fill();
+}
+})();
+
+// ===== 登录逻辑 =====
 let mode='login'; // login | register
 function toggleMode(){
   mode=mode==='login'?'register':'login';
