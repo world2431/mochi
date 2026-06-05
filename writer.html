@@ -39,6 +39,7 @@ body{background:var(--bg);color:var(--text);font-family:'PingFang SC','Microsoft
 #editor-wrap.focus{padding:60px 15%}
 #editor{width:100%;min-height:calc(100vh - 160px);background:transparent;border:none;color:var(--text);font-size:17px;line-height:2.1;resize:none;font-family:inherit;letter-spacing:.5px}
 #editor::placeholder{color:rgba(255,255,255,.06)}#editor:focus{outline:none}
+@media(max-width:768px){#chapters{width:50px}#chapters .ch-header{font-size:0}#chapters .ch-header button{font-size:12px}#ch-list .ch-item{font-size:10px;padding:6px}#ch-list .ch-item .del{display:none}#ai-panel{position:fixed;right:0;top:0;bottom:0;z-index:10;width:280px;transform:translateX(100%);transition:transform .3s}#ai-panel.open{transform:translateX(0)}#editor-wrap{padding:16px 20px 40px}#toolbar{gap:4px;padding:6px 10px}.tool-btn{padding:4px 8px;font-size:9px}}
 
 /* AI助手面板 */
 #ai-panel{width:300px;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;transition:width .3s}
