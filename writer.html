@@ -39,7 +39,7 @@ body{background:var(--bg);color:var(--text);font-family:'PingFang SC','Microsoft
 #editor-wrap.focus{padding:60px 15%}
 #editor{width:100%;min-height:calc(100vh - 160px);background:transparent;border:none;color:var(--text);font-size:17px;line-height:2.1;resize:none;font-family:inherit;letter-spacing:.5px}
 #editor::placeholder{color:rgba(255,255,255,.06)}#editor:focus{outline:none}
-@media(max-width:768px){#chapters{width:50px}#chapters .ch-header{font-size:0}#chapters .ch-header button{font-size:12px}#ch-list .ch-item{font-size:10px;padding:6px}#ch-list .ch-item .del{display:none}#ai-panel{position:fixed;right:0;top:0;bottom:0;z-index:10;width:280px;transform:translateX(100%);transition:transform .3s}#ai-panel.open{transform:translateX(0)}#editor-wrap{padding:16px 20px 40px}#toolbar{gap:4px;padding:6px 10px}.tool-btn{padding:4px 8px;font-size:9px}}
+@media(max-width:768px){#chapters{position:fixed;left:0;top:0;bottom:0;z-index:10;width:200px;transform:translateX(-100%);transition:transform .3s}#chapters.open{transform:translateX(0)}#chapters::after{content:'目录';position:fixed;left:0;top:50%;transform:translateY(-50%) rotate(-90deg);background:var(--surface);border:1px solid var(--border);border-left:none;padding:6px 12px;border-radius:0 8px 8px 0;font-size:10px;letter-spacing:2px;color:var(--dim);cursor:pointer;z-index:11;display:none}#ai-panel{position:fixed;right:0;top:0;bottom:0;z-index:10;width:280px;transform:translateX(100%);transition:transform .3s}#ai-panel.open{transform:translateX(0)}#editor-wrap{padding:12px 16px 40px}#editor-wrap.focus{padding:60px 8%}#toolbar{gap:2px;padding:6px 8px;flex-wrap:wrap}.tool-btn{padding:4px 7px;font-size:9px;letter-spacing:0}}#word-badge{position:fixed;bottom:16px;right:16px;z-index:5;background:rgba(22,24,32,.85);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:12px;letter-spacing:2px;color:var(--dim);pointer-events:none;backdrop-filter:blur(8px)}
 
 /* AI助手面板 */
 #ai-panel{width:300px;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;transition:width .3s}
@@ -103,6 +103,7 @@ body{background:var(--bg);color:var(--text);font-family:'PingFang SC','Microsoft
   </div>
   <div id="goal-bar"><div id="goal-fill"></div></div>
   <div id="editor-wrap"><textarea id="editor" placeholder="开始书写你的故事…" oninput="updateStats();autoSave()"></textarea></div>
+<div id="word-badge">0 字</div>
   <div id="focus-hint">专注模式 · Esc退出</div>
 </div>
 
@@ -254,6 +255,7 @@ function autoSave(){
 }
 function updateStats(){
   const n=document.getElementById('editor').value.replace(/\s/g,'').length;document.getElementById('word-count').textContent=n+' 字';
+  document.getElementById('word-badge').textContent=n+' 字';
   const pct=Math.min(100,n/2000*100);document.getElementById('goal-fill').style.width=pct+'%';
   checkLiveFeedback();
 }
