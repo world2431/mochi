@@ -23,7 +23,7 @@ let panX=0,panStart=0,panStartX=0,panning=false,brushStar=null;
 // 加载灵感数据
 const items=JSON.parse(localStorage.getItem('starBottles')||'[]');
 // 如果没数据，创建示例用于预览
-if(items.length===0){items.push({text:'欢迎来到星空·每一颗星都是一次灵感的封存',date:'此刻'});localStorage.setItem('starBottles',JSON.stringify(items))}
+// 不覆盖用户数据 — 如果为空就显示提示文字
 const totalWidth=Math.max(W*2,items.length*100+300);
 document.getElementById('count').textContent=items.length+' 颗星';
 

@@ -54,6 +54,7 @@ function updateBtnCount(){document.getElementById('btnAddRiver').innerHTML=`+ �
 
 // ===== 绘制 =====
 function draw(){
+  try{
   ctx.clearRect(0,0,W,H);
   const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#0a1818');bg.addColorStop(.5,'#0d2020');bg.addColorStop(1,'#0a1818');ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
   // 背景粒子
@@ -108,6 +109,7 @@ function draw(){
   // 正在消失的元素
   dyingItems.forEach((d,i)=>{d.life-=.02;if(d.life>0){ctx.globalAlpha=d.life;drawItem(d.item,d.x+panX,d.y,d.type==='die');ctx.globalAlpha=1}});
   dyingItems=dyingItems.filter(d=>d.life>0);
+  }catch(e){ctx.fillStyle='#f00';ctx.font='14px sans-serif';ctx.fillText('错误: '+e.message,20,40)}
 }
 
 function drawItem(item,x,y,highlight){
