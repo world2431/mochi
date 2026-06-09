@@ -1,212 +1,104 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>时光小河</title>
-<style>
-*{margin:0;padding:0}body{background:#0d1a1a;overflow:hidden;font-family:'PingFang SC','Microsoft YaHei',sans-serif}
-canvas{display:block;position:fixed;top:0;left:0;width:100vw;height:100vh}#back{position:fixed;top:12px;left:12px;z-index:5;padding:6px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.1);background:rgba(13,26,26,.8);color:rgba(255,255,255,.5);font-size:11px;cursor:pointer;letter-spacing:1px;font-family:inherit;transition:all .3s}#back:hover{color:#fff}
-#toolbar{position:fixed;top:12px;right:12px;z-index:5;display:flex;gap:6px}
-.tbtn{padding:6px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(13,26,26,.8);color:rgba(255,255,255,.4);font-size:10px;cursor:pointer;letter-spacing:1px;font-family:inherit;transition:all .3s}.tbtn:hover{color:#fff;border-color:rgba(255,255,255,.3)}.tbtn.active{color:#88ccdd;border-color:rgba(136,204,221,.4)}.tbtn.place{color:#c8d080;border-color:rgba(200,208,128,.4)}
-#note{position:fixed;z-index:6;background:rgba(20,30,35,.95);border:1px solid rgba(136,204,221,.2);border-radius:14px;padding:16px;width:240px;display:none;backdrop-filter:blur(8px)}
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=yes"><title>时光小河</title>
+<style>*{margin:0;padding:0}body{background:#0d1a1a;font-family:'PingFang SC','Microsoft YaHei',sans-serif;overflow:hidden;touch-action:none}
+canvas{position:fixed;top:0;left:0}#back{position:fixed;top:10px;left:10px;z-index:5;padding:6px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.1);background:rgba(13,26,26,.8);color:rgba(255,255,255,.5);font-size:11px;cursor:pointer;letter-spacing:1px;font-family:inherit;text-decoration:none}
+#back:hover{color:#fff}#tools{position:fixed;top:10px;right:10px;z-index:5;display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.tb{padding:5px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:rgba(13,26,26,.8);color:rgba(255,255,255,.4);font-size:10px;cursor:pointer;letter-spacing:1px;font-family:inherit}.tb:hover{color:#fff;border-color:rgba(255,255,255,.3)}.tb.act{color:#8cd;border-color:rgba(136,204,221,.4)}
+#note{position:fixed;z-index:10;background:rgba(20,30,35,.95);border:1px solid rgba(136,204,221,.2);border-radius:14px;padding:14px;width:240px;display:none;backdrop-filter:blur(8px)}
 #note input,#note textarea{width:100%;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.3);color:#c8d8d8;font-size:11px;font-family:inherit;margin-bottom:6px;resize:vertical}
 #note input:focus,#note textarea:focus{outline:none;border-color:rgba(136,204,221,.4)}
-#note button{padding:6px 14px;border-radius:10px;border:1px solid rgba(136,204,221,.3);background:rgba(136,204,221,.08);color:#88ccdd;cursor:pointer;font-size:10px;letter-spacing:1px;font-family:inherit}
-#note button.del{border-color:rgba(255,80,80,.3);background:rgba(255,80,80,.08);color:#ff6b6b}
-#hint{position:fixed;bottom:16px;left:0;width:100%;text-align:center;color:rgba(255,255,255,.12);font-size:10px;letter-spacing:2px;pointer-events:none}
-</style>
+#note button{padding:5px 12px;border-radius:8px;border:1px solid rgba(136,204,221,.3);background:rgba(136,204,221,.08);color:#8cd;cursor:pointer;font-size:10px;letter-spacing:1px;font-family:inherit}
+#note button.del{border-color:rgba(255,80,80,.3);color:#f66;margin-left:6px}#hint{position:fixed;bottom:12px;left:0;width:100%;text-align:center;color:rgba(255,255,255,.1);font-size:10px;letter-spacing:2px;pointer-events:none}</style>
 </head>
 <body>
-<button id="back" onclick="history.back()">← 返回</button>
-<div id="toolbar">
-  <button class="tbtn" id="btnAddRiver" onclick="addBranch()">+ 支流 (${4})</button>
-  <button class="tbtn" id="btnConnect" onclick="toggleConnect()">~ 连接</button>
-  <button class="tbtn" id="btnReverse" onclick="addReverse()">⟲ 回溯</button>
-  <button class="tbtn place" id="btnAddItem" onclick="addRandomItem()">+ 鱼石草</button>
+<a href="home.html" id="back">← 返回</a>
+<div id="tools">
+  <button class="tb" onclick="addRiver()" id="btnRiver">+ 支流</button>
+  <button class="tb" onclick="toggleConnect()" id="btnConn">~ 连接</button>
+  <button class="tb" onclick="addReverse()">⟲ 回溯</button>
+  <button class="tb" onclick="placeItem()" id="btnPlace">+ 鱼石草</button>
 </div>
-<div id="note"><input id="noteDate" placeholder="时间点"><textarea id="noteEvent" placeholder="发生了什么…" rows="2"></textarea><div style="display:flex;gap:6px"><button onclick="saveNote()">保存</button><button class="del" onclick="delNote()">删除</button></div></div>
-<div id="hint">拖拽鱼石草到岸上丢弃 · 双击河里添加 · 点击编辑</div>
+<div id="note"><input id="nDate" placeholder="时间点"><textarea id="nEvent" placeholder="发生了什么…" rows="2"></textarea><button onclick="saveNote()">保存</button><button class="del" onclick="delNote()">删除</button></div>
+<div id="hint">双击河中放置 · 拖拽鱼石草上岸丢弃 · 左右拖动平移</div>
 <canvas id="c"></canvas>
 <script>
-const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
-let W=Math.max(innerWidth||300,300),H=Math.max(innerHeight||500,500);canvas.width=W;canvas.height=H;
-window.addEventListener('resize',()=>{W=Math.max(innerWidth||300,300);H=Math.max(innerHeight||500,500);canvas.width=W;canvas.height=H});
+const C=document.getElementById('c'),X=C.getContext('2d');
+let W=innerWidth,H=innerHeight;C.width=W*2;C.height=H*2;X.scale(2,2);
+window.addEventListener('resize',()=>{W=innerWidth;H=innerHeight;C.width=W*2;C.height=H*2;X.scale(2,2)});
 
-const params=new URLSearchParams(location.search);
-let characters=[],character={name:'时光',timeline:[]};
-try{characters=JSON.parse(localStorage.getItem('w_characters')||'[]');character=characters.find(c=>c.id===params.get('id'))||characters[0]||character}catch(e){}
+// 数据加载
+let chars=[],ch={name:'时光',timeline:[]};
+try{chars=JSON.parse(localStorage.getItem('w_characters')||'[]');const id=new URLSearchParams(location.search).get('id');ch=chars.find(c=>c.id===id)||chars[0]||ch}catch(e){}
+let items=(ch.timeline||[]).map((t,i)=>({x:120+i*140,type:['rock','fish1','fish2','plant'][i%4],date:t.time||'',event:t.event||'',v:i%3}));
+if(!items.length)items=[{x:200,type:'rock',date:'开始',event:'故事的起点',v:0},{x:380,type:'fish1',date:'',event:'',v:1},{x:560,type:'plant',date:'',event:'',v:2}];
+let rivers=[{id:'r1',y:H*.35,items,direction:1}];
+let connections=[],dying=[],panX=0,placeMode=null,connMode=false,connSel=[],drag=null,dragItem=null,dragRiver=null,panning=false,panS=0,panSX=0,activeNote=null,brush=null;
 
-// 初始化
-let initItems=[];
-try{initItems=(character.timeline||[]).map((t,i)=>({x:120+i*160,y:0,type:i%4===0?'rock':(i%4===1?'fish1':(i%4===2?'fish2':'plant')),date:t.time||'',event:t.event||'',variant:i%3}))}catch(e){}
-if(!initItems.length)initItems=[{x:200,y:0,type:'rock',date:'开始',event:'故事的起点',variant:0},{x:400,y:0,type:'fish1',date:'',event:'',variant:1},{x:600,y:0,type:'plant',date:'',event:'',variant:2}];
-let rivers=[{id:'r1',y:H*.35,items:initItems,direction:1}];
-const MAX_RIVERS=4,RIVER_GAP=160;
-let activeRiver='r1',connectMode=false,connectSels=[],activeNote=null,brushItem=null;
-let placingMode=false,placingType='',panX=0,panning=false,panStart=0,panStartX=0;
-let dragging=null,dragOX=0,dragOY=0,dragItem=null,dragRiver=null;
-let connections=[]; // [{fromRiver,fromItem,toRiver,toItem}]
-let dyingItems=[]; // 正在消失的元素动画
+// 保存
+function save(){try{const m=rivers[0];if(m){ch.timeline=m.items.map(i=>({time:i.date,event:i.event}));localStorage.setItem('w_characters',JSON.stringify(chars))}}catch(e){}}
 
-function getRiver(id){return rivers.find(r=>r.id===id)}
-function saveData(){
-  try{const main=rivers[0];if(main&&character){character.timeline=main.items.map(it=>({time:it.date||'',event:it.event||''}));localStorage.setItem('w_characters',JSON.stringify(characters))}}catch(e){}
-}
-function updateBtnCount(){document.getElementById('btnAddRiver').innerHTML=`+ 支流 (${rivers.length}/${MAX_RIVERS})`}
-
-// ===== 绘制 =====
+// 绘制
 function draw(){
-  try{
-  ctx.clearRect(0,0,W,H);
-  const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#0a1818');bg.addColorStop(.5,'#0d2020');bg.addColorStop(1,'#0a1818');ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
-  // 背景粒子
-  ctx.fillStyle='rgba(180,200,200,.03)';for(let i=0;i<30;i++){const sx=(Date.now()*.01+i*137)%W,sy=(i*251)%H;ctx.beginPath();ctx.arc(sx,sy,1.5,0,Math.PI*2);ctx.fill()}
+  X.clearRect(0,0,W,H);
+  X.fillStyle='#0d1a1a';X.fillRect(0,0,W,H);
+  // 星星
+  for(let i=0;i<20;i++){X.fillStyle='rgba(180,200,200,.05)';X.beginPath();X.arc((i*137+Date.now()*.01)%W,(i*251)%H,.8,0,7);X.fill()}
+  // 连接线
+  connSel.forEach(s=>{X.strokeStyle='rgba(255,220,100,.6)';X.lineWidth=2;X.setLineDash([3,3]);X.beginPath();X.arc(s.x+panX,s.y,20,0,7);X.stroke();X.setLineDash([])});
+  connections.forEach(c=>{const r1=rivers.find(r=>r.id===c.fr),r2=rivers.find(r=>r.id===c.tr);if(!r1||!r2)return;const i1=r1.items.find(i=>i===c.fi),i2=r2.items.find(i=>i===c.ti);if(!i1||!i2)return;const x1=i1.x+panX,y1=r1.y+Math.sin(i1.x*.008+Date.now()*.0008)*6,x2=i2.x+panX,y2=r2.y+Math.sin(i2.x*.008+Date.now()*.0008)*6;X.strokeStyle='rgba(136,200,210,.25)';X.lineWidth=2;X.setLineDash([5,4]);X.beginPath();if(c.fr===c.tr){const m=(x1+x2)/2,my=Math.min(y1,y2)-55;X.moveTo(x1,y1);X.quadraticCurveTo(x1,my,m,my);X.quadraticCurveTo(x2,my,x2,y2)}else{const m=(x1+x2)/2;X.moveTo(x1,y1);X.bezierCurveTo(m,y1,m,y2,x2,y2)}X.stroke();X.setLineDash([])});
 
-  // 水渠连接线
-  connections.forEach(conn=>{
-    const r1=getRiver(conn.fromRiver),r2=getRiver(conn.toRiver);if(!r1||!r2)return;
-    const it1=r1.items.find(it=>it===conn.fromItem),it2=r2.items.find(it=>it===conn.toItem);if(!it1||!it2)return;
-    const x1=it1.x+panX,y1=r1.y+Math.sin(it1.x*.008+Date.now()*.0008)*6;
-    const x2=it2.x+panX,y2=r2.y+Math.sin(it2.x*.008+Date.now()*.0008)*6;
-    ctx.strokeStyle='rgba(136,200,210,.3)';ctx.lineWidth=2;ctx.setLineDash([6,3]);
-    ctx.beginPath();
-    if(conn.fromRiver===conn.toRiver){
-      // U形水渠
-      const mx=(x1+x2)/2,my=Math.min(y1,y2)-60;
-      ctx.moveTo(x1,y1);ctx.quadraticCurveTo(x1,my,mx,my);ctx.quadraticCurveTo(x2,my,x2,y2);
-    }else{
-      // S形连接
-      const mx=(x1+x2)/2;
-      ctx.moveTo(x1,y1);ctx.bezierCurveTo(mx,y1,mx,y2,x2,y2);
-    }
-    ctx.stroke();ctx.setLineDash([]);
-  });
+  rivers.forEach(r=>{
+    const ry=r.y,rw=r===rivers[0]?48:28;
+    X.fillStyle='rgba(25,55,65,.6)';X.beginPath();X.moveTo(0,ry-rw/2);for(let x=0;x<=W;x+=8)X.lineTo(x,ry-rw/2+Math.sin(x*.008+Date.now()*.0008)*5);X.lineTo(W,ry+rw/2);for(let x=W;x>=0;x-=8)X.lineTo(x,ry+rw/2+Math.sin(x*.008+Date.now()*.0008)*5);X.closePath();X.fill();
+    X.strokeStyle='rgba(120,180,200,.12)';X.lineWidth=1.5;X.beginPath();for(let x=0;x<W;x+=6)X.lineTo(x,ry+Math.sin(x*.01+Date.now()*.001)*3);X.stroke();
+    for(let ax=(60-(panX%180+180)%180)%180;ax<W+100;ax+=180){X.fillStyle='rgba(150,200,210,.2)';X.font='12px sans-serif';X.textAlign='center';X.fillText(r.direction>0?'→':'←',ax,ry-6)}
+    X.strokeStyle='rgba(80,130,140,.2)';X.lineWidth=1;X.beginPath();for(let x=0;x<W;x+=6)X.lineTo(x,ry-rw/2+Math.sin(x*.008+Date.now()*.0008)*5);X.stroke();X.beginPath();for(let x=0;x<W;x+=6)X.lineTo(x,ry+rw/2+Math.sin(x*.008+Date.now()*.0008)*5);X.stroke();
 
-  // 连接模式下选中标记
-  connectSels.forEach(s=>{ctx.strokeStyle='rgba(255,220,100,.7)';ctx.lineWidth=2;ctx.setLineDash([3,3]);ctx.beginPath();ctx.arc(s.x+panX,s.y,25,0,Math.PI*2);ctx.stroke();ctx.setLineDash([])});
-
-  rivers.forEach(river=>{
-    const ry=river.y,rw=Math.max(28,river===rivers[0]?55:32);
-    // 水面
-    ctx.fillStyle='rgba(30,60,70,.6)';ctx.beginPath();ctx.moveTo(0,ry-rw/2);
-    for(let x=0;x<W;x+=10)ctx.lineTo(x,ry-rw/2+Math.sin(x*.008+Date.now()*.0008)*6);
-    ctx.lineTo(W,ry+rw/2);for(let x=W;x>=0;x-=10)ctx.lineTo(x,ry+rw/2+Math.sin(x*.008+Date.now()*.0008)*6);
-    ctx.closePath();ctx.fill();
-    ctx.strokeStyle='rgba(120,180,200,.15)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(0,ry);for(let x=0;x<W;x+=8)ctx.lineTo(x,ry+Math.sin(x*.01+Date.now()*.001)*3);ctx.stroke();
-    ctx.strokeStyle='rgba(80,130,140,.3)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,ry-rw/2);for(let x=0;x<W;x+=8)ctx.lineTo(x,ry-rw/2+Math.sin(x*.008+Date.now()*.0008)*6);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(0,ry+rw/2);for(let x=0;x<W;x+=8)ctx.lineTo(x,ry+rw/2+Math.sin(x*.008+Date.now()*.0008)*6);ctx.stroke();
-
-    // 河中元素
-    if(!river.items||!river.items.length)return;
-    river.items.forEach((item,idx)=>{
-      if(dragging&&dragItem===item)return; // 拖拽中不画原位
-      drawItem(item,item.x+panX,ry+Math.sin(item.x*.008+Date.now()*.0008)*6,false);
+    if(!r.items)return;
+    r.items.forEach((item,idx)=>{
+      if(drag&&dragItem===item)return;
+      const ix=item.x+panX,iy=ry+Math.sin(item.x*.008+Date.now()*.0008)*5;
+      const v=item.v||0,hover=brush===item;
+      if(item.type.startsWith('fish')){
+        const sx=12+v*3,sy=6+v*2,colors=['#e89860','#c87840','#f0a870'];X.fillStyle=colors[v];X.beginPath();X.ellipse(ix,iy-4,sx+Math.sin(Date.now()*.004+v)*2,sy,.12,0,7);X.fill();X.fillStyle='#111';X.beginPath();X.arc(ix+sx*.4,iy-6,2,0,7);X.fill();X.fillStyle='#fff';X.beginPath();X.arc(ix+sx*.4+1,iy-7,.6,0,7);X.fill();X.fillStyle='rgba(255,200,150,.5)';X.beginPath();X.moveTo(ix-sx*.3,iy-4);X.lineTo(ix-sx-4,iy-10);X.lineTo(ix-sx-5,iy);X.closePath();X.fill();
+      }else if(item.type==='rock'){
+        const rx=8+v*4,ry2=5+v*2;X.fillStyle='#556068';X.beginPath();X.ellipse(ix,iy+4,rx,ry2,.3,0,7);X.fill();X.fillStyle='rgba(255,255,255,.06)';X.beginPath();X.ellipse(ix-2,iy+2,rx*.3,ry2*.25,-.2,0,7);X.fill();
+      }else if(item.type==='plant'){
+        const sw=Math.sin(Date.now()*.003+v)*3;X.strokeStyle=['#5a9460','#4a8450','#68a870'][v];X.lineWidth=2;X.lineCap='round';for(let b=0;b<3+v;b++){X.beginPath();X.moveTo(ix-3+b*5,iy+10);X.quadraticCurveTo(ix-5+b*3+sw,iy-6,ix-1+b*2+sw*1.5,iy-20);X.stroke()}
+      }
+      if(hover){X.strokeStyle='rgba(255,240,180,.6)';X.lineWidth=2;X.beginPath();X.arc(ix,iy,20,0,7);X.stroke()}
+      if(item.date){X.fillStyle='rgba(255,255,255,.25)';X.font='8px sans-serif';X.textAlign='center';X.fillText(item.date,ix,iy+16)}
     });
-    // 方向箭头
-    for(let ax=(60-panX%200+200)%200;ax<W+200;ax+=200){const ay=ry+Math.sin(ax*.008+Date.now()*.0008)*6;ctx.fillStyle='rgba(150,200,210,.25)';ctx.font='13px sans-serif';ctx.textAlign='center';ctx.fillText(river.direction>0?'→':'←',ax,ay-8)}
   });
-
-  // 拖拽中的元素
-  if(dragging){const mx=dragging.x+panX;drawItem(dragItem,mx,dragging.y,true)}
-
-  // 正在消失的元素
-  dyingItems.forEach((d,i)=>{d.life-=.02;if(d.life>0){ctx.globalAlpha=d.life;drawItem(d.item,d.x+panX,d.y,d.type==='die');ctx.globalAlpha=1}});
-  dyingItems=dyingItems.filter(d=>d.life>0);
-  }catch(e){ctx.fillStyle='#f00';ctx.font='14px sans-serif';ctx.fillText('错误: '+e.message,20,40)}
+  dying.forEach((d,i)=>{d.life-=.02;if(d.life>0){X.globalAlpha=d.life;const item=d.item,iy=d.y;const v=item.v||0;if(item.type.startsWith('fish')){X.fillStyle='#ffb8a0';X.beginPath();X.ellipse(d.x,iy-4,14,7,.12,0,7);X.fill()}X.globalAlpha=1}});
+  dying=dying.filter(d=>d.life>0);
 }
 
-function drawItem(item,x,y,highlight){
-  const v=item.variant||0;
-  if(item.type.startsWith('fish')){
-    const sx=13+v*4,sy=7+v*3;const colors=['#e89860','#c87840','#f0a870'];ctx.fillStyle=highlight?'#ffb8a0':colors[v];
-    ctx.beginPath();ctx.ellipse(x,y-6,sx+Math.sin(Date.now()*.004+v)*2,sy,.12,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle='rgba(255,255,255,.2)';ctx.lineWidth=.5;for(let s=0;s<3;s++){ctx.beginPath();ctx.arc(x-3+s*5,y-7,sx*.3,0,Math.PI);ctx.stroke()}
-    ctx.fillStyle='#1a1a1a';ctx.beginPath();ctx.arc(x+sx*.5,y-8,2.2,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x+sx*.5+1,y-9,.7,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='rgba(255,200,150,.6)';ctx.beginPath();ctx.moveTo(x-sx*.4,y-6);ctx.lineTo(x-sx-5,y-12);ctx.lineTo(x-sx-7,y-1);ctx.closePath();ctx.fill();
-    ctx.fillStyle='rgba(255,200,150,.6)';ctx.beginPath();ctx.moveTo(x-sx*.1,y-12);ctx.lineTo(x+sx*.2,y-16);ctx.lineTo(x+sx*.4,y-11);ctx.closePath();ctx.fill();
-    if(highlight||brushItem===item){ctx.strokeStyle='rgba(255,255,200,.6)';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(x,y-6,sx+5,sy+3,.12,0,Math.PI*2);ctx.stroke()}
-  }else if(item.type==='rock'){
-    const rx=9+v*5,ry2=6+v*3;ctx.fillStyle=highlight?'#b0c0c8':'#5a6872';
-    ctx.beginPath();ctx.ellipse(x,y+4,rx+Math.sin(v)*2,ry2+Math.cos(v)*1.5,.3,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,.08)';ctx.beginPath();ctx.ellipse(x-2,y+2,rx*.4,ry2*.3,-.2,0,Math.PI*2);ctx.fill();ctx.strokeStyle='rgba(0,0,0,.2)';ctx.lineWidth=1.5;ctx.stroke();
-    if(highlight||brushItem===item){ctx.strokeStyle='rgba(255,255,200,.6)';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(x,y+4,rx+4,ry2+3,.3,0,Math.PI*2);ctx.stroke()}
-  }else if(item.type==='plant'){
-    const sway=Math.sin(Date.now()*.003+v)*4;ctx.strokeStyle=['#5a9460','#4a8450','#68a870'][v];ctx.lineWidth=2+v*.5;ctx.lineCap='round';
-    for(let b=0;b<3+v;b++){ctx.beginPath();ctx.moveTo(x-4+b*6,y+12);ctx.quadraticCurveTo(x-6+b*4+sway,y-8,x-2+b*3+sway*1.5,y-22);ctx.stroke()}
-    if(highlight||brushItem===item){ctx.strokeStyle='rgba(255,255,200,.5)';ctx.lineWidth=3;for(let b=0;b<2;b++){ctx.beginPath();ctx.moveTo(x-2+b*8,y+14);ctx.quadraticCurveTo(x-4+b*5+sway,y-10,x+sway*1.5,y-24);ctx.stroke()}}
-  }
-  if(item.date){ctx.fillStyle='rgba(255,255,255,.3)';ctx.font='bold 9px "PingFang SC","Microsoft YaHei",sans-serif';ctx.textAlign='center';ctx.fillText(item.date,x,y+22)}
-}
+// 交互
+function hitTest(mx,my){let h=null;rivers.forEach(r=>{if(r.items)r.items.forEach(item=>{const iy=r.y+Math.sin(item.x*.008+Date.now()*.0008)*5;if(Math.hypot(mx-(item.x+panX),my-iy)<25)h={item,river:r}})})}
+C.addEventListener('mousemove',e=>{const mx=e.clientX-panX,my=e.clientY;let h=null;rivers.forEach(r=>{if(r.items)r.items.forEach(item=>{const iy=r.y+Math.sin(item.x*.008+Date.now()*.0008)*5;if(Math.hypot(e.clientX-(item.x+panX),e.clientY-iy)<25)h=item})});brush=h;C.style.cursor=h?'pointer':placeMode?'crosshair':connMode?'crosshair':'grab'});
+C.addEventListener('mousedown',e=>{if(e.button===1||(!brush&&!placeMode&&!connMode)){panning=true;panS=e.clientX;panSX=panX;return}if(brush&&!placeMode&&!connMode){drag={};dragItem=brush;rivers.forEach(r=>{if(r.items&&r.items.includes(dragItem))dragRiver=r})}});
+C.addEventListener('mousemove',e=>{if(panning)panX=panSX+(e.clientX-panS);if(drag){drag.x=e.clientX-panX;drag.y=e.clientY}});
+C.addEventListener('mouseup',e=>{if(drag&&dragItem){const my=e.clientY;let inRv=false;rivers.forEach(r=>{if(my>r.y-40&&my<r.y+40)inRv=true});if(!inRv&&dragRiver){dying.push({item:dragItem,x:drag.x+panX,y:drag.y,life:1});dragRiver.items=dragRiver.items.filter(i=>i!==dragItem);save()}else if(inRv){dragItem.x=drag.x;dragItem.y=0}}drag=null;dragItem=null;dragRiver=null;panning=false});
+C.addEventListener('click',e=>{if(panning||drag)return;const mx=e.clientX-panX,my=e.clientY;if(placeMode){let hr=null;rivers.forEach(r=>{if(e.clientY>r.y-40&&e.clientY<r.y+40)hr=r});if(hr){hr.items.push({x:mx,type:placeMode,date:'',event:'',v:Math.floor(Math.random()*3)});save()}placeMode=null;document.getElementById('btnPlace').classList.remove('act');return}if(connMode){let fd=null;rivers.forEach(r=>{if(r.items)r.items.forEach(item=>{const iy=r.y+Math.sin(item.x*.008+Date.now()*.0008)*5;if(Math.hypot(e.clientX-(item.x+panX),e.clientY-iy)<25)fd={x:item.x,y:iy,item,river:r.id}})});if(fd){connSel.push(fd);if(connSel.length>=2){const a=connSel[0],b=connSel[1];connections.push({fr:a.river,fi:a.item,tr:b.river,ti:b.item});connSel=[];connMode=false;document.getElementById('btnConn').classList.remove('act')}}return}let h=null;rivers.forEach(r=>{if(r.items)r.items.forEach(item=>{const iy=r.y+Math.sin(item.x*.008+Date.now()*.0008)*5;if(Math.hypot(e.clientX-(item.x+panX),e.clientY-iy)<25)h={item,river:r,x:e.clientX,y:e.clientY}})});if(h)showNote(h);else hideNote()});
+C.addEventListener('dblclick',e=>{if(placeMode||connMode||drag)return;const mx=e.clientX-panX;let hr=null;rivers.forEach(r=>{if(e.clientY>r.y-40&&e.clientY<r.y+40)hr=r});if(hr){const t=['fish1','fish2','rock','plant'][Math.floor(Math.random()*4)];hr.items.push({x:mx,type:t,date:'',event:'',v:Math.floor(Math.random()*3)});save()}});
+C.addEventListener('contextmenu',e=>{e.preventDefault();const mx=e.clientX-panX;let h=null;rivers.forEach(r=>{if(r.items)r.items.forEach((item,i)=>{const iy=r.y+Math.sin(item.x*.008+Date.now()*.0008)*5;if(Math.hypot(e.clientX-(item.x+panX),e.clientY-iy)<25)h={item,river:r,idx:i}})});if(h){h.river.items.splice(h.idx,1);save()}});
+// 触控
+C.addEventListener('touchstart',e=>{const t=e.touches[0];let h=null;rivers.forEach(r=>{if(r.items)r.items.forEach(item=>{const iy=r.y+Math.sin(item.x*.008+Date.now()*.0008)*5;if(Math.hypot(t.clientX-(item.x+panX),t.clientY-iy)<25)h=item})});brush=h;if(!h&&!placeMode&&!connMode){panning=true;panS=t.clientX;panSX=panX}else if(h&&!placeMode&&!connMode){drag={};dragItem=h;rivers.forEach(r=>{if(r.items&&r.items.includes(dragItem))dragRiver=r})}});
+C.addEventListener('touchmove',e=>{e.preventDefault();const t=e.touches[0];if(panning)panX=panSX+(t.clientX-panS);if(drag){drag.x=t.clientX-panX;drag.y=t.clientY}});
+C.addEventListener('touchend',e=>{if(drag&&dragItem){const my=drag.y;let inRv=false;rivers.forEach(r=>{if(my>r.y-40&&my<r.y+40)inRv=true});if(!inRv&&dragRiver){dying.push({item:dragItem,x:drag.x+panX,y:drag.y,life:1});dragRiver.items=dragRiver.items.filter(i=>i!==dragItem);save()}else if(inRv){dragItem.x=drag.x;dragItem.y=0}}drag=null;dragItem=null;dragRiver=null;panning=false});
 
-// ===== 交互 =====
-canvas.addEventListener('mousedown',e=>{
-  if(e.button===1||(!brushItem&&!placingMode&&!connectMode)){panning=true;panStart=e.clientX;panStartX=panX;canvas.style.cursor='grabbing';return}
-  if(brushItem&&!placingMode&&!connectMode&&!e.shiftKey){
-    // 开始拖拽
-    dragging={x:e.clientX-panX,y:e.clientY};dragOX=dragging.x;dragOY=dragging.y;dragItem=brushItem;
-    rivers.forEach(r=>{const idx=r.items.indexOf(dragItem);if(idx>=0)dragRiver=r});
-  }
-});
-canvas.addEventListener('mousemove',e=>{
-  const mx=e.clientX-panX,my=e.clientY;
-  if(panning){panX=panStartX+(e.clientX-panStart);return}
-  if(dragging){dragging.x=mx;dragging.y=my;canvas.style.cursor='grabbing';return}
-  brushItem=null;
-  rivers.forEach(r=>{r.items.forEach(item=>{const ix=item.x+panX;const iy=r.y+Math.sin(ix*.008+Date.now()*.0008)*6;if(Math.abs(e.clientX-ix)<30&&Math.abs(my-iy)<30)brushItem=item})});
-  canvas.style.cursor=brushItem?'grab':placingMode?'crosshair':connectMode?'crosshair':'default';
-});
-canvas.addEventListener('mouseup',e=>{
-  if(dragging&&dragItem){
-    const mx=e.clientX-panX,my=e.clientY;
-    // 判断是否拖到岸上
-    let inRiver=false;
-    rivers.forEach(r=>{if(my>r.y-40&&my<r.y+40)inRiver=true});
-    if(!inRiver&&dragRiver){
-      // 扔出→消失
-      dyingItems.push({item:dragItem,x:mx,y:my,life:1,type:'die'});dragRiver.items=dragRiver.items.filter(it=>it!==dragItem);saveData();
-    }else if(inRiver){
-      // 放回河里→移到新位置
-      dragItem.x=mx;dragItem.y=0;
-    }
-    dragging=null;dragItem=null;dragRiver=null;canvas.style.cursor='default';
-  }
-  panning=false;
-});
-canvas.addEventListener('click',e=>{
-  if(panning||dragging)return;
-  const mx=e.clientX-panX,my=e.clientY;
-  if(placingMode){
-    let hr=null;rivers.forEach(r=>{if(e.clientY>r.y-40&&e.clientY<r.y+40)hr=r});
-    if(hr){hr.items.push({x:mx,y:0,type:placingType,date:'',event:'',variant:Math.floor(Math.random()*3)});saveData()}
-    placingMode=false;document.getElementById('btnAddItem').classList.remove('active');document.getElementById('btnAddItem').textContent='+ 鱼石草';return;
-  }
-  if(connectMode){
-    let found=null;rivers.forEach(r=>{r.items.forEach(item=>{const iy=r.y+Math.sin(item.x*.008+Date.now()*.0008)*6;if(Math.hypot(e.clientX-(item.x+panX),e.clientY-iy)<30){found={x:item.x,y:iy,item,river:r.id}}})});
-    if(found){connectSels.push(found);if(connectSels.length>=2){const s1=connectSels[0],s2=connectSels[1];connections.push({fromRiver:s1.river,fromItem:s1.item,toRiver:s2.river,toItem:s2.item});connectSels=[];connectMode=false;document.getElementById('btnConnect').classList.remove('active')}}
-    return;
-  }
-  // 找元素编辑
-  let hit=null;rivers.forEach(r=>{r.items.forEach(item=>{const iy=r.y+Math.sin(item.x*.008+Date.now()*.0008)*6;if(Math.hypot(e.clientX-(item.x+panX),e.clientY-iy)<30)hit={item,river:r,x:item.x+panX,y:iy}})});
-  if(hit){showNote(e.clientX,e.clientY,hit)}else{hideNote()}
-});
-canvas.addEventListener('contextmenu',e=>{e.preventDefault();let hit=null;const mx=e.clientX-panX;rivers.forEach(r=>{r.items.forEach((item,i)=>{const iy=r.y+Math.sin(item.x*.008+Date.now()*.0008)*6;if(Math.hypot(e.clientX-(item.x+panX),e.clientY-iy)<30)hit={item,river:r,idx:i}})});if(hit){hit.river.items.splice(hit.idx,1);saveData()}});
-canvas.addEventListener('dblclick',e=>{if(placingMode||connectMode||dragging)return;const mx=e.clientX-panX;let hr=null;rivers.forEach(r=>{if(e.clientY>r.y-40&&e.clientY<r.y+40)hr=r});if(hr){hr.items.push({x:mx,y:0,type:['fish1','fish2','rock','plant'][Math.floor(Math.random()*4)],date:'',event:'',variant:Math.floor(Math.random()*3)});saveData()}});
-// ===== 触控支持（手机端）=====
-canvas.addEventListener('touchstart',e=>{const t=e.touches[0];const mx=t.clientX-panX;brushItem=null;rivers.forEach(r=>{r.items.forEach(item=>{const iy=r.y+Math.sin(item.x*.008+Date.now()*.0008)*6;if(Math.abs(t.clientX-(item.x+panX))<30&&Math.abs(t.clientY-iy)<30)brushItem=item})});if(!brushItem&&!placingMode&&!connectMode){panning=true;panStart=t.clientX;panStartX=panX;e.preventDefault();return}if(brushItem){dragging={x:mx,y:t.clientY};dragItem=brushItem;rivers.forEach(r=>{const idx=r.items.indexOf(dragItem);if(idx>=0)dragRiver=r});e.preventDefault()}});
-canvas.addEventListener('touchmove',e=>{e.preventDefault();const t=e.touches[0];const mx=t.clientX-panX,my=t.clientY;if(panning){panX=panStartX+(t.clientX-panStart);return}if(dragging){dragging.x=mx;dragging.y=my}});
-canvas.addEventListener('touchend',e=>{e.preventDefault();if(dragging&&dragItem){let inRiver=false;rivers.forEach(r=>{if(dragging.y>r.y-40&&dragging.y<r.y+40)inRiver=true});if(!inRiver&&dragRiver){dyingItems.push({item:dragItem,x:dragging.x,y:dragging.y,life:1});dragRiver.items=dragRiver.items.filter(it=>it!==dragItem);saveData()}else if(inRiver){dragItem.x=dragging.x;dragItem.y=0}dragging=null;dragItem=null;dragRiver=null}panning=false}));
-
-// 便签
-function showNote(x,y,hit){const n=document.getElementById('note');n.style.display='block';n.style.left=Math.min(x,W-260)+'px';n.style.top=Math.min(y,H-180)+'px';document.getElementById('noteDate').value=hit.item.date||'';document.getElementById('noteEvent').value=hit.item.event||'';activeNote=hit}
+function showNote(h){const n=document.getElementById('note');n.style.display='block';n.style.left=Math.min(h.x,W-260)+'px';n.style.top=Math.min(h.y,H-170)+'px';document.getElementById('nDate').value=h.item.date||'';document.getElementById('nEvent').value=h.item.event||'';activeNote=h}
 function hideNote(){document.getElementById('note').style.display='none';activeNote=null}
-function saveNote(){if(!activeNote)return;activeNote.item.date=document.getElementById('noteDate').value.trim();activeNote.item.event=document.getElementById('noteEvent').value.trim();hideNote();saveData()}
-function delNote(){if(!activeNote)return;activeNote.river.items=activeNote.river.items.filter(it=>it!==activeNote.item);hideNote();saveData()}
+function saveNote(){if(!activeNote)return;activeNote.item.date=document.getElementById('nDate').value;activeNote.item.event=document.getElementById('nEvent').value;hideNote();save()}
+function delNote(){if(!activeNote)return;activeNote.river.items=activeNote.river.items.filter(i=>i!==activeNote.item);hideNote();save()}
 
-// 工具栏
-function addBranch(){if(rivers.length>=MAX_RIVERS)return;const last=rivers[rivers.length-1];rivers.push({id:'r'+Date.now(),y:Math.min(H-60,(last?last.y:0)+RIVER_GAP),items:[],direction:1});saveData();updateBtnCount()}
-function toggleConnect(){connectMode=!connectMode;document.getElementById('btnConnect').classList.toggle('active',connectMode);if(!connectMode)connectSels=[]}
-function addReverse(){if(rivers.length>=MAX_RIVERS)return;const first=rivers[0];rivers.unshift({id:'r'+Date.now(),y:Math.max(60,(first?first.y:0)-RIVER_GAP),items:[],direction:-1});saveData();updateBtnCount()}
-function addRandomItem(){const types=['fish1','fish2','rock','plant'];placingType=types[Math.floor(Math.random()*types.length)];placingMode=true;const b=document.getElementById('btnAddItem');b.classList.add('active');b.textContent='点击河中放置';setTimeout(()=>{if(placingMode){b.textContent='+ 鱼石草';b.classList.remove('active');placingMode=false}},5000)}
+function addRiver(){if(rivers.length>=4)return;const l=rivers[rivers.length-1];rivers.push({id:'r'+Date.now(),y:Math.min(H-50,(l?l.y:0)+140),items:[],direction:1});document.getElementById('btnRiver').textContent='+ 支流('+rivers.length+'/4)'}
+function toggleConnect(){connMode=!connMode;document.getElementById('btnConn').classList.toggle('act',connMode);connSel=[]}
+function addReverse(){if(rivers.length>=4)return;const f=rivers[0];rivers.unshift({id:'r'+Date.now(),y:Math.max(50,(f?f.y:0)-140),items:[],direction:-1});document.getElementById('btnRiver').textContent='+ 支流('+rivers.length+'/4)'}
+function placeItem(){const t=['fish1','fish2','rock','plant'][Math.floor(Math.random()*4)];placeMode=t;document.getElementById('btnPlace').classList.add('act');document.getElementById('btnPlace').textContent='点河中放置';setTimeout(()=>{if(placeMode){placeMode=null;document.getElementById('btnPlace').classList.remove('act');document.getElementById('btnPlace').textContent='+ 鱼石草'}},5000)}
 
-updateBtnCount();
 function loop(){draw();requestAnimationFrame(loop)}loop();
 </script>
 </body>
