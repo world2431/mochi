@@ -32,7 +32,7 @@ let chars=[],ch={name:'时光',timeline:[]};
 try{chars=JSON.parse(localStorage.getItem('w_characters')||'[]');const id=new URLSearchParams(location.search).get('id');ch=chars.find(c=>c.id===id)||chars[0]||ch}catch(e){}
 let items=(ch.timeline||[]).map((t,i)=>({x:120+i*140,type:['rock','fish1','fish2','plant'][i%4],date:t.time||'',event:t.event||'',v:i%3}));
 if(!items.length)items=[{x:200,type:'rock',date:'开始',event:'故事的起点',v:0},{x:380,type:'fish1',date:'',event:'',v:1},{x:560,type:'plant',date:'',event:'',v:2}];
-let rivers=[{id:'r1',y:H*.35,items,direction:1}];
+let rivers=[{id:'r1',y:H*.5,items,direction:1}];
 let connections=[],dying=[],panX=0,placeMode=null,connMode=false,connSel=[],drag=null,dragItem=null,dragRiver=null,panning=false,panS=0,panSX=0,activeNote=null,brush=null;
 
 // 保存
@@ -94,9 +94,9 @@ function hideNote(){document.getElementById('note').style.display='none';activeN
 function saveNote(){if(!activeNote)return;activeNote.item.date=document.getElementById('nDate').value;activeNote.item.event=document.getElementById('nEvent').value;hideNote();save()}
 function delNote(){if(!activeNote)return;activeNote.river.items=activeNote.river.items.filter(i=>i!==activeNote.item);hideNote();save()}
 
-function addRiver(){if(rivers.length>=4)return;const l=rivers[rivers.length-1];rivers.push({id:'r'+Date.now(),y:Math.min(H-50,(l?l.y:0)+140),items:[],direction:1});document.getElementById('btnRiver').textContent='+ 支流('+rivers.length+'/4)'}
+function addRiver(){if(rivers.length>=4)return;const l=rivers[rivers.length-1];const ny=Math.min(H-80,Math.max(80,(l?l.y:0)+120));rivers.push({id:'r'+Date.now(),y:ny,items:[],direction:1});document.getElementById('btnRiver').textContent='+ 支流('+rivers.length+'/4)'}
 function toggleConnect(){connMode=!connMode;document.getElementById('btnConn').classList.toggle('act',connMode);connSel=[]}
-function addReverse(){if(rivers.length>=4)return;const f=rivers[0];rivers.unshift({id:'r'+Date.now(),y:Math.max(50,(f?f.y:0)-140),items:[],direction:-1});document.getElementById('btnRiver').textContent='+ 支流('+rivers.length+'/4)'}
+function addReverse(){if(rivers.length>=4)return;const f=rivers[0];const ny=Math.max(80,Math.min(H-80,(f?f.y:0)-120));rivers.unshift({id:'r'+Date.now(),y:ny,items:[],direction:-1});document.getElementById('btnRiver').textContent='+ 支流('+rivers.length+'/4)'}
 function placeItem(){const t=['fish1','fish2','rock','plant'][Math.floor(Math.random()*4)];placeMode=t;document.getElementById('btnPlace').classList.add('act');document.getElementById('btnPlace').textContent='点河中放置';setTimeout(()=>{if(placeMode){placeMode=null;document.getElementById('btnPlace').classList.remove('act');document.getElementById('btnPlace').textContent='+ 鱼石草'}},5000)}
 
 function loop(){draw();requestAnimationFrame(loop)}loop();
