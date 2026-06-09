@@ -98,7 +98,7 @@ function delNote(){if(!activeNote)return;activeNote.river.items=activeNote.river
 
 function addRiver(){if(rivers.length>=MAX_RIVERS)return;const l=rivers[rivers.length-1];const ny=Math.min(H-BRANCH_GAP,Math.max(BRANCH_GAP,(l?l.y:0)+BRANCH_GAP));rivers.push({id:'r'+Date.now(),y:ny,items:[],direction:1});updateBtns()}
 function toggleConnect(){connMode=!connMode;document.getElementById('btnConn').classList.toggle('act',connMode);connSel=[]}
-function addReverse(){if(rivers.length>=MAX_RIVERS||hasReverse)return;const f=rivers[0];const ny=Math.max(BRANCH_GAP,Math.min(H-BRANCH_GAP,(f?f.y:0)-BRANCH_GAP));rivers.unshift({id:'r'+Date.now(),y:ny,items:[],direction:-1});hasReverse=true;updateBtns()}
+function addReverse(){if(hasReverse)return;if(rivers.length>=MAX_RIVERS)return;const f=rivers[0];const ny=Math.max(80,(f?f.y:0)-BRANCH_GAP);if(ny<40)return;rivers.unshift({id:'r'+Date.now(),y:ny,items:[],direction:-1});hasReverse=true;updateBtns()}
 function updateBtns(){document.getElementById('btnRiver').textContent='+ 支流('+rivers.length+'/'+MAX_RIVERS+')'}
 function placeItem(){const t=['fish1','fish2','rock','plant'][Math.floor(Math.random()*4)];placeMode=t;document.getElementById('btnPlace').classList.add('act');document.getElementById('btnPlace').textContent='点河中放置';setTimeout(()=>{if(placeMode){placeMode=null;document.getElementById('btnPlace').classList.remove('act');document.getElementById('btnPlace').textContent='+ 鱼石草'}},5000)}
 
