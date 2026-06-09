@@ -3,7 +3,7 @@
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>时光小河</title>
 <style>
 *{margin:0;padding:0}body{background:#0d1a1a;overflow:hidden;font-family:'PingFang SC','Microsoft YaHei',sans-serif}
-canvas{display:block}#back{position:fixed;top:12px;left:12px;z-index:5;padding:6px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.1);background:rgba(13,26,26,.8);color:rgba(255,255,255,.5);font-size:11px;cursor:pointer;letter-spacing:1px;font-family:inherit;transition:all .3s}#back:hover{color:#fff}
+canvas{display:block;position:fixed;top:0;left:0;width:100vw;height:100vh}#back{position:fixed;top:12px;left:12px;z-index:5;padding:6px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.1);background:rgba(13,26,26,.8);color:rgba(255,255,255,.5);font-size:11px;cursor:pointer;letter-spacing:1px;font-family:inherit;transition:all .3s}#back:hover{color:#fff}
 #toolbar{position:fixed;top:12px;right:12px;z-index:5;display:flex;gap:6px}
 .tbtn{padding:6px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(13,26,26,.8);color:rgba(255,255,255,.4);font-size:10px;cursor:pointer;letter-spacing:1px;font-family:inherit;transition:all .3s}.tbtn:hover{color:#fff;border-color:rgba(255,255,255,.3)}.tbtn.active{color:#88ccdd;border-color:rgba(136,204,221,.4)}.tbtn.place{color:#c8d080;border-color:rgba(200,208,128,.4)}
 #note{position:fixed;z-index:6;background:rgba(20,30,35,.95);border:1px solid rgba(136,204,221,.2);border-radius:14px;padding:16px;width:240px;display:none;backdrop-filter:blur(8px)}
@@ -48,7 +48,7 @@ let dyingItems=[]; // 正在消失的元素动画
 
 function getRiver(id){return rivers.find(r=>r.id===id)}
 function saveData(){
-  const main=rivers[0];if(main&&character){character.timeline=main.items.map(it=>({time:it.date,event:it.event}));localStorage.setItem('w_characters',JSON.stringify(characters))}
+  try{const main=rivers[0];if(main&&character){character.timeline=main.items.map(it=>({time:it.date||'',event:it.event||''}));localStorage.setItem('w_characters',JSON.stringify(characters))}}catch(e){}
 }
 function updateBtnCount(){document.getElementById('btnAddRiver').innerHTML=`+ 支流 (${rivers.length}/${MAX_RIVERS})`}
 
@@ -95,6 +95,7 @@ function draw(){
     ctx.beginPath();ctx.moveTo(0,ry+rw/2);for(let x=0;x<W;x+=8)ctx.lineTo(x,ry+rw/2+Math.sin(x*.008+Date.now()*.0008)*6);ctx.stroke();
 
     // 河中元素
+    if(!river.items||!river.items.length)return;
     river.items.forEach((item,idx)=>{
       if(dragging&&dragItem===item)return; // 拖拽中不画原位
       drawItem(item,item.x+panX,ry+Math.sin(item.x*.008+Date.now()*.0008)*6,false);
