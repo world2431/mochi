@@ -24,8 +24,8 @@ canvas{position:fixed;top:0;left:0}#back{position:fixed;top:10px;left:10px;z-ind
 <canvas id="c"></canvas>
 <script>
 const C=document.getElementById('c'),X=C.getContext('2d');
-let W=innerWidth,H=innerHeight;C.width=W*2;C.height=H*2;X.scale(2,2);
-window.addEventListener('resize',()=>{W=innerWidth;H=innerHeight;C.width=W*2;C.height=H*2;X.scale(2,2)});
+let W=innerWidth,H=innerHeight;C.width=W;C.height=H;
+window.addEventListener('resize',()=>{W=innerWidth;H=innerHeight;C.width=W;C.height=H});
 
 // 数据加载
 let chars=[],ch={name:'时光',timeline:[]};
