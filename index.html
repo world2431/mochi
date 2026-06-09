@@ -47,6 +47,7 @@ body{background:var(--paper);font-family:'STKaiti','KaiTi','STSong','SimSun',ser
   <button class="btn" id="btnLogin" onclick="handleLogin()">入 池</button>
   <button class="btn btn-reg" id="btnToggle" onclick="toggleMode()">还没有账号？点此注册</button>
   <div class="msg" id="msg"></div>
+  <div style="margin-top:16px;font-size:10px;color:rgba(0,0,0,.15);letter-spacing:2px" id="visitorCount">...</div>
 </div>
 
 <script>
@@ -130,6 +131,8 @@ function handleLogin(){
   if(users[nick]!==pw){document.getElementById('msg').textContent='密码错误';return}
   localStorage.setItem('mochi_user',nick);window.location.href='home.html';
 }
+// 访问计数
+(async()=>{try{const r=await fetch('https://api.countapi.xyz/hit/mochi-writer/visits');const d=await r.json();document.getElementById('visitorCount').textContent='🌐 第 '+d.value+' 位访客'}catch(e){document.getElementById('visitorCount').textContent=''}})();
 // 回车登录
 document.getElementById('password').addEventListener('keydown',e=>{if(e.key==='Enter')handleLogin()});
 document.getElementById('confirmPw').addEventListener('keydown',e=>{if(e.key==='Enter')handleLogin()});
